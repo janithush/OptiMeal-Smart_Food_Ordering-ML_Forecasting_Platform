@@ -1,0 +1,314 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Department {
+  ICT
+  ET
+  BST
+}
+
+enum DietaryPreference {
+  VEGAN
+  VEGETARIAN
+  NON_VEGETARIAN
+}
+
+enum OrderType {
+  PRE_ORDER
+  WALK_IN
+}
+
+enum OrderStatus {
+  CONFIRMED
+  IN_PREPARATION
+  READY
+  COLLECTED
+  CANCELLED
+}
+
+enum WalletTransactionType {
+  TOP_UP
+  ORDER_DEDUCTION
+  COINS_REDEMPTION
+  REFUND
+}
+
+enum CookPlanStatus {
+  SUGGESTED
+  CONFIRMED
+  SUPERSEDED
+}
+
+enum GroupOrderStatus {
+  OPEN
+  CONFIRMED
+  EXPIRED
+}
+
+enum CoinSource {
+  WALLET_TOP_UP
+  PRE_ORDER_SPEND
+}
+
+// ─── Core User ───────────────────────────────────────────────────
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  name              String
+  role              Role               @default(STUDENT)
+  department        Department?
+  dietaryPreference DietaryPreference?
+  onboardingDone    Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  wallet            WalletAccount?
+  orders            Order[]
+  coinBatches       CoinBatch[]
+  groupOrders       GroupOrder[]       @relation("OrganizerOrders")
+  groupParticipants GroupOrderParticipant[]
+}
+
+// ─── Wallet ───────────────────────────────────────────────────────
+
+model WalletAccount {
+  id           String               @id @default(uuid())
+  userId       String               @unique
+  user         User                 @relation(fields: [userId], references: [id])
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id              String                @id @default(uuid())
+  walletId        String
+  wallet          WalletAccount         @relation(fields: [walletId], references: [id])
+  type            WalletTransactionType
+  amount          Decimal               @db.Decimal(10, 2)  // positive=credit, negative=debit
+  idempotencyKey  String                @unique              // PayHere order_id or app order_id
+  payHereRef      String?
+  orderId         String?
+  runningBalance  Decimal               @db.Decimal(10, 2)
+  createdAt       DateTime              @default(now())
+}
+
+// ─── Loyalty Coins ────────────────────────────────────────────────
+
+model CoinBatch {
+  id         String     @id @default(uuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+  earned     Int
+  redeemed   Int        @default(0)
+  source     CoinSource
+  orderId    String?
+  earnedAt   DateTime   @default(now())
+  expiresAt  DateTime                          // earnedAt + 90 days
+  expired    Boolean    @default(false)
+}
+
+// ─── Menu ─────────────────────────────────────────────────────────
+
+model MenuItem {
+  id               String            @id @default(uuid())
+  name             String
+  description      String?           @db.Text
+  basePrice        Decimal           @db.Decimal(8, 2)
+  dietaryType      DietaryPreference
+  imageUrl         String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  ingredients      MenuItemIngredient[]
+  dailySpecials    DailySpecial[]
+  orderItems       OrderItem[]
+  cookPlanItems    CookPlanItem[]
+  demandForecasts  DemandForecast[]
+}
+
+model MenuItemIngredient {
+  menuItemId           String
+  ingredientId         String
+  menuItem             MenuItem   @relation(fields: [menuItemId], references: [id])
+  ingredient           Ingredient @relation(fields: [ingredientId], references: [id])
+  quantityPerPortion   Decimal    @db.Decimal(8, 4)   // kg or liters per 1 portion
+
+  @@id([menuItemId, ingredientId])
+}
+
+model DailySpecial {
+  id           String   @id @default(uuid())
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
+  specialPrice Decimal  @db.Decimal(8, 2)
+  description  String?
+  date         DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  @@unique([menuItemId, date])
+}
+
+// ─── Pickup Slots ─────────────────────────────────────────────────
+
+model PickupSlot {
+  id           String    @id @default(uuid())
+  date         DateTime  @db.Date
+  slotTime     String                           // "11:30", "11:45", ...
+  maxCapacity  Int       @default(30)
+  currentCount Int       @default(0)
+  orders       Order[]
+
+  @@unique([date, slotTime])
+}
+
+// ─── Orders ───────────────────────────────────────────────────────
+
+model Order {
+  id             String      @id @default(uuid())
+  orderNumber    String      @unique                 // "#0142" format
+  studentId      String
+  student        User        @relation(fields: [studentId], references: [id])
+  type           OrderType
+  status         OrderStatus @default(CONFIRMED)
+  pickupSlotId   String?
+  pickupSlot     PickupSlot? @relation(fields: [pickupSlotId], references: [id])
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  coinsRedeemed  Int         @default(0)
+  discountAmount Decimal     @db.Decimal(8, 2) @default(0)
+  qrCode         String      @unique
+  groupOrderId   String?
+  groupOrder     GroupOrder? @relation(fields: [groupOrderId], references: [id])
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  items          OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  menuItemId  String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(8, 2)          // price captured at order time
+  subtotal    Decimal  @db.Decimal(10, 2)
+}
+
+// ─── Group Orders ─────────────────────────────────────────────────
+
+model GroupOrder {
+  id           String           @id @default(uuid())
+  code         String           @unique @db.Char(6)
+  organizerId  String
+  organizer    User             @relation("OrganizerOrders", fields: [organizerId], references: [id])
+  pickupSlotId String?
+  status       GroupOrderStatus @default(OPEN)
+  expiresAt    DateTime                             // createdAt + 30 minutes
+  createdAt    DateTime         @default(now())
+
+  participants GroupOrderParticipant[]
+  orders       Order[]
+}
+
+model GroupOrderParticipant {
+  id           String     @id @default(uuid())
+  groupOrderId String
+  groupOrder   GroupOrder @relation(fields: [groupOrderId], references: [id])
+  studentId    String
+  student      User       @relation(fields: [studentId], references: [id])
+  joinedAt     DateTime   @default(now())
+
+  @@unique([groupOrderId, studentId])
+}
+
+// ─── Inventory ────────────────────────────────────────────────────
+
+model Ingredient {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  unit        String                                // "kg" | "liters"
+  createdAt   DateTime @default(now())
+
+  menuItems        MenuItemIngredient[]
+  inventoryRecords InventoryRecord[]
+  procurementAlerts ProcurementAlert[]
+}
+
+model InventoryRecord {
+  id            String     @id @default(uuid())
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  date          DateTime   @db.Date
+  openingStock  Decimal    @db.Decimal(8, 3)
+  closingStock  Decimal?   @db.Decimal(8, 3)
+  wastage       Decimal?   @db.Decimal(8, 3)        // derived: openingStock - closingStock - sold
+  createdAt     DateTime   @default(now())
+
+  @@unique([ingredientId, date])
+}
+
+// ─── ML & Forecasting ─────────────────────────────────────────────
+
+model DemandForecast {
+  id              String   @id @default(uuid())
+  date            DateTime @db.Date
+  menuItemId      String
+  menuItem        MenuItem @relation(fields: [menuItemId], references: [id])
+  predictedQty    Int
+  lowEstimate     Int
+  highEstimate    Int
+  confidenceScore Decimal  @db.Decimal(5, 2)        // 0.00–100.00
+  modelVersion    String                             // "linear-regression-v1" | "fallback-actuals"
+  generatedAt     DateTime @default(now())
+
+  @@unique([date, menuItemId])
+}
+
+model CookPlanItem {
+  id             String         @id @default(uuid())
+  date           DateTime       @db.Date
+  menuItemId     String
+  menuItem       MenuItem       @relation(fields: [menuItemId], references: [id])
+  forecastQty    Int
+  preOrderQty    Int            @default(0)
+  finalQty       Int
+  bufferQty      Int            @default(0)          // 10% buffer applied
+  adminAdjusted  Boolean        @default(false)
+  status         CookPlanStatus @default(SUGGESTED)
+  confirmedAt    DateTime?
+  confirmedBy    String?
+  supersededById String?
+  createdAt      DateTime       @default(now())
+
+  @@unique([date, menuItemId, status])
+}
+
+model ProcurementAlert {
+  id             String     @id @default(uuid())
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+  date           DateTime   @db.Date
+  currentStock   Decimal    @db.Decimal(8, 3)
+  forecastedNeed Decimal    @db.Decimal(8, 3)
+  deficit        Decimal    @db.Decimal(8, 3)
+  isResolved     Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+}
