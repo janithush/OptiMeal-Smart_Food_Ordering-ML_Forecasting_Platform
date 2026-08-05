@@ -1,0 +1,169 @@
+Date,Item,Quantity Sold
+2025-08-01,Rice & Curry,130
+2025-08-01,Kottu,45
+2025-08-01,Fried Rice,89
+2025-08-01,Noodles,66
+2025-08-01,Short Eats,148
+2025-08-01,Juice,82
+2025-08-01,Tea,132
+2025-08-01,Coffee,112
+2025-08-02,Rice & Curry,74
+2025-08-02,Kottu,117
+2025-08-02,Fried Rice,122
+2025-08-02,Noodles,56
+2025-08-02,Short Eats,39
+2025-08-02,Juice,117
+2025-08-02,Tea,40
+2025-08-02,Coffee,63
+2025-08-03,Rice & Curry,74
+2025-08-03,Kottu,47
+2025-08-03,Fried Rice,64
+2025-08-03,Noodles,29
+2025-08-03,Short Eats,119
+2025-08-03,Juice,122
+2025-08-03,Tea,102
+2025-08-03,Coffee,26
+2025-08-04,Rice & Curry,120
+2025-08-04,Kottu,119
+2025-08-04,Fried Rice,22
+2025-08-04,Noodles,122
+2025-08-04,Short Eats,49
+2025-08-04,Juice,64
+2025-08-04,Tea,121
+2025-08-04,Coffee,124
+2025-08-05,Rice & Curry,59
+2025-08-05,Kottu,137
+2025-08-05,Fried Rice,128
+2025-08-05,Noodles,92
+2025-08-05,Short Eats,27
+2025-08-05,Juice,23
+2025-08-05,Tea,80
+2025-08-05,Coffee,148
+2025-08-06,Rice & Curry,55
+2025-08-06,Kottu,129
+2025-08-06,Fried Rice,57
+2025-08-06,Noodles,52
+2025-08-06,Short Eats,69
+2025-08-06,Juice,26
+2025-08-06,Tea,102
+2025-08-06,Coffee,51
+2025-08-07,Rice & Curry,140
+2025-08-07,Kottu,77
+2025-08-07,Fried Rice,142
+2025-08-07,Noodles,63
+2025-08-07,Short Eats,22
+2025-08-07,Juice,108
+2025-08-07,Tea,140
+2025-08-07,Coffee,108
+2025-08-08,Rice & Curry,101
+2025-08-08,Kottu,39
+2025-08-08,Fried Rice,55
+2025-08-08,Noodles,56
+2025-08-08,Short Eats,140
+2025-08-08,Juice,63
+2025-08-08,Tea,109
+2025-08-08,Coffee,130
+2025-08-09,Rice & Curry,84
+2025-08-09,Kottu,67
+2025-08-09,Fried Rice,131
+2025-08-09,Noodles,66
+2025-08-09,Short Eats,36
+2025-08-09,Juice,72
+2025-08-09,Tea,114
+2025-08-09,Coffee,45
+2025-08-10,Rice & Curry,122
+2025-08-10,Kottu,115
+2025-08-10,Fried Rice,47
+2025-08-10,Noodles,117
+2025-08-10,Short Eats,129
+2025-08-10,Juice,100
+2025-08-10,Tea,52
+2025-08-10,Coffee,34
+2025-08-11,Rice & Curry,61
+2025-08-11,Kottu,97
+2025-08-11,Fried Rice,53
+2025-08-11,Noodles,83
+2025-08-11,Short Eats,140
+2025-08-11,Juice,42
+2025-08-11,Tea,145
+2025-08-11,Coffee,122
+2025-08-12,Rice & Curry,61
+2025-08-12,Kottu,60
+2025-08-12,Fried Rice,103
+2025-08-12,Noodles,141
+2025-08-12,Short Eats,123
+2025-08-12,Juice,72
+2025-08-12,Tea,59
+2025-08-12,Coffee,96
+2025-08-13,Rice & Curry,116
+2025-08-13,Kottu,111
+2025-08-13,Fried Rice,99
+2025-08-13,Noodles,77
+2025-08-13,Short Eats,120
+2025-08-13,Juice,49
+2025-08-13,Tea,56
+2025-08-13,Coffee,91
+2025-08-14,Rice & Curry,145
+2025-08-14,Kottu,93
+2025-08-14,Fried Rice,84
+2025-08-14,Noodles,90
+2025-08-14,Short Eats,27
+2025-08-14,Juice,24
+2025-08-14,Tea,150
+2025-08-14,Coffee,32
+2025-08-15,Rice & Curry,149
+2025-08-15,Kottu,105
+2025-08-15,Fried Rice,103
+2025-08-15,Noodles,115
+2025-08-15,Short Eats,82
+2025-08-15,Juice,94
+2025-08-15,Tea,146
+2025-08-15,Coffee,118
+2025-08-16,Rice & Curry,113
+2025-08-16,Kottu,44
+2025-08-16,Fried Rice,129
+2025-08-16,Noodles,145
+2025-08-16,Short Eats,108
+2025-08-16,Juice,137
+2025-08-16,Tea,101
+2025-08-16,Coffee,55
+2025-08-17,Rice & Curry,110
+2025-08-17,Kottu,143
+2025-08-17,Fried Rice,106
+2025-08-17,Noodles,114
+2025-08-17,Short Eats,83
+2025-08-17,Juice,126
+2025-08-17,Tea,75
+2025-08-17,Coffee,67
+2025-08-18,Rice & Curry,39
+2025-08-18,Kottu,39
+2025-08-18,Fried Rice,125
+2025-08-18,Noodles,114
+2025-08-18,Short Eats,76
+2025-08-18,Juice,34
+2025-08-18,Tea,32
+2025-08-18,Coffee,138
+2025-08-19,Rice & Curry,122
+2025-08-19,Kottu,65
+2025-08-19,Fried Rice,81
+2025-08-19,Noodles,62
+2025-08-19,Short Eats,99
+2025-08-19,Juice,26
+2025-08-19,Tea,93
+2025-08-19,Coffee,124
+2025-08-20,Rice & Curry,38
+2025-08-20,Kottu,113
+2025-08-20,Fried Rice,41
+2025-08-20,Noodles,147
+2025-08-20,Short Eats,95
+2025-08-20,Juice,66
+2025-08-20,Tea,33
+2025-08-20,Coffee,84
+2025-08-21,Rice & Curry,110
+2025-08-21,Kottu,111
+2025-08-21,Fried Rice,142
+2025-08-21,Noodles,103
+2025-08-21,Short Eats,92
+2025-08-21,Juice,41
+2025-08-21,Tea,93
+2025-08-21,Coffee,71

@@ -1,0 +1,8 @@
+# AI Tool Internal Files
+_bmad/
+.agent/
+.agents/
+
+# Secret Environment Variables
+.env
+.env.local
