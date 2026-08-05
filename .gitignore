@@ -6,3 +6,12 @@ _bmad/
 # Secret Environment Variables
 .env
 .env.local
+
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+
+# Runtime Data
+dist/
