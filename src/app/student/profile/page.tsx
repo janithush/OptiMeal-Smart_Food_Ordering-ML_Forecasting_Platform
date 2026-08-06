@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { LogOut } from "lucide-react";
+import SignOutButton from "./SignOutButton";
 import ProfileFormClient from "./ProfileFormClient";
 
 export default async function ProfilePage() {
@@ -29,10 +29,7 @@ export default async function ProfilePage() {
             <h1 className="text-2xl font-bold text-[oklch(0.97_0_0)]">Your Profile</h1>
             <p className="mt-1 text-[oklch(0.65_0.01_260)] text-sm">{user.email}</p>
           </div>
-          <a href="/api/auth/signout"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[oklch(0.55_0.01_260)] text-xs hover:text-[oklch(0.97_0_0)] hover:bg-[oklch(0.15_0.01_260)] transition-colors">
-            <LogOut className="w-4 h-4" /> Sign Out
-          </a>
+          <SignOutButton />
         </div>
 
         {/* Form Card */}

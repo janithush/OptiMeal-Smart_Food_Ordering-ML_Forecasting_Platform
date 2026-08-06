@@ -296,7 +296,7 @@ export default function UITestPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-5 h-5" style={{ color: "var(--brand)" }} />
                     <span className="text-sm font-medium" style={{ color: "var(--brand)" }}>
-                      Today's Special
+                      Today&apos;s Special
                     </span>
                   </div>
                   <h3 className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>

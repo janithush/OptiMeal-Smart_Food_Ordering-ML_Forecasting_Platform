@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { GraduationCap, ClipboardCheck } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import ProfileForm from "@/components/profile/ProfileForm";
 import type { ProfileData } from "@/components/profile/ProfileForm";
 
