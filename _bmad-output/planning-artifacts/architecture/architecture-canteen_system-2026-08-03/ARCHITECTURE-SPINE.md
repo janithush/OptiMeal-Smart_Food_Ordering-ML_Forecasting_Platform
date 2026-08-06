@@ -39,9 +39,15 @@ One codebase, two roles (STUDENT / ADMIN), one database, one ML sidecar. The par
 **Rule:** `WalletTransaction` records are append-only. Balance is `SUM(amount)` over the transaction log — never stored as a mutable scalar on the account record.
 
 ### AD-4: Auth is JWT, Roles are Claims, Middleware Enforces
-**Binds:** NextAuth.js with Google OAuth. Session strategy: JWT (stateless). The `role` claim (`STUDENT` | `ADMIN`) is embedded in the JWT at sign-in and re-validated on every request by Next.js middleware. Domain restriction (`fot.ruh.ac.lk`) is enforced in the NextAuth `signIn` callback — non-matching accounts are rejected before a session is created.
-**Prevents:** A Student reaching an Admin route; a non-university email registering.
-**Rule:** Middleware runs on all `/student/*` and `/admin/*` route segments. API Route Handlers additionally re-read the session server-side — middleware alone is not sufficient for API security.
+**Binds:** NextAuth.js with Google OAuth. Session strategy: JWT (stateless). The `role` claim (`STUDENT` | `ADMIN`) is embedded in the JWT at sign-in and re-validated on every request by Next.js middleware. Any valid Google account can sign in — there is no email domain restriction. Google profile picture, name, and email are captured and stored in the database on first sign-in via the PrismaAdapter.
+**Prevents:** A Student reaching an Admin route; an unauthenticated user accessing any protected route.
+**Rule:** Middleware runs on all `/student/*` and `/admin/*` route segments. API Route Handlers additionally re-read the session server-side — middleware alone is not sufficient for API security. Google profile picture URL is refreshed on each sign-in. Default role for all new users is `STUDENT` — Admin role requires manual promotion in the database.
+`[ADOPTED]`
+
+### AD-12: User Profile is Enriched Post-Auth
+**Binds:** Google OAuth provides the foundation (name, email, picture). After first sign-in, Students complete onboarding with: Student Registration Number (`regNo`), Batch/Academic Year (`batch`), Department, Dietary Preference, Food Allergies (`allergies` — multi-select), and optional Phone Number (`phone`). All fields are stored on the `User` model and editable from a dedicated Profile page.
+**Prevents:** Incomplete user profiles leaking into analytics; ML recommendations running without dietary/allergy context.
+**Rule:** `User.onboardingDone` is `false` until the Student completes all required fields. The Profile page provides CRUD access to all user-editable fields. Student Registration Number is unique per user.
 `[ADOPTED]`
 
 ### AD-5: ML Service is Internal — Browser Never Calls It Directly

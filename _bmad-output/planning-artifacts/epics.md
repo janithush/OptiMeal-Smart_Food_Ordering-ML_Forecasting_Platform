@@ -237,22 +237,24 @@ pm run db:seed is executed
 **And** successfully populates the InventoryRecord, OrderItem, and User tables with historical records without crashing on foreign key constraints
 ## Epic 2: Authentication, Onboarding & Role Access
 
-Students and Admins can securely log in with their university Google account, complete their profile, and be directed to role-appropriate views with all routes protected.
+Students and Admins can securely log in with their Google account (any domain), complete their enriched profile (registration number, batch, department, dietary preference, allergies), and be directed to role-appropriate views with all routes protected.
+**FRs covered:** FR-1, FR-2, FR-3
 
-### Story 2.1: Google OAuth SSO & Domain Restriction
+### Story 2.1: Google OAuth SSO & Profile Capture
 
 As a User,
-I want to log in using my University Google account,
-So that I can securely access the system without creating a new password.
+I want to log in using my Google account,
+So that I can securely access the system without creating a new password, and have my profile picture, name, and email automatically saved.
 
 **Acceptance Criteria:**
 
-**Given** I attempt to sign in via Google OAuth
-**When** I use an email ending in @fot.ruh.ac.lk
+**Given** I attempt to sign in via Google OAuth with any valid Google account
+**When** I complete the Google sign-in flow
 **Then** my JWT session is created and my User record is created/fetched with a default STUDENT role (if new)
-**And** if I use any other domain, I am rejected with an "Access restricted to Faculty of Technology accounts" error
-**And** my 
-ole claim is embedded directly into the JWT token
+**And** my Google profile picture, name, and email are captured and stored in the database
+**And** my `role` claim is embedded directly into the JWT token
+**And** returning users have their name and profile picture refreshed from Google on each sign-in
+**And** a login page is displayed at `/login` with a "Sign in with Google" button
 
 ### Story 2.2: Role-Based Route Protection (RBAC) Middleware
 
@@ -268,18 +270,22 @@ So that sensitive operational data and controls remain secure.
 **And** unauthenticated users attempting to access any protected route are redirected to /login
 **And** API routes explicitly re-verify the server-side session to prevent bypassing middleware
 
-### Story 2.3: Student Profile Onboarding Flow
+### Story 2.3: Student Profile Onboarding & Profile Page
 
 As a First-Time Student,
-I want to complete my profile with my Department and Dietary Preference,
-So that the menu and recommendations are tailored to me.
+I want to complete my full profile (registration number, batch, department, dietary preference, allergies) and have a dedicated Profile page to manage my details,
+So that the menu, recommendations, and allergen warnings are tailored to me.
 
 **Acceptance Criteria:**
 
 **Given** I have successfully authenticated but my onboardingDone flag is false
 **When** I attempt to access any protected student route (like /student/home)
 **Then** I am redirected to the /student/onboarding page
-**And** when I submit my Department (ICT/ET/BST) and Dietary Preference (Vegan/Veg/Non-Veg), the flag is set to true and I am redirected to the home page
+**And** the onboarding form collects: Student Registration Number (text), Batch/Academic Year (text, e.g., "2023/2024"), Department (ICT/ET/BST dropdown), Dietary Preference (Vegan/Vegetarian/Non-Veg dropdown), Food Allergies (multi-select: Nuts, Dairy, Gluten, Shellfish, Eggs, Soy, None), Phone Number (optional)
+**And** my Google profile picture and name are pre-filled and editable
+**And** after completing all required fields, the onboardingDone flag is set to true and I am redirected to /student/home
+**And** I have access to a /student/profile page where I can view and edit all my profile fields at any time
+**And** updating my dietary preference immediately affects menu filtering; updating my allergies triggers allergen warnings on relevant menu items
 
 ## Epic 3: Menu Browsing & Pre-Order System
 
