@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Clock, ShoppingBag, ClipboardList, Timer } from "lucide-react";
+import { Clock, ShoppingBag, ClipboardList, Timer, Wallet } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import type { CartItem, OrderResult } from "@/types/cart";
@@ -22,6 +22,7 @@ interface Props {
   slots: PickupSlotData[];
   userDietary: DietaryType | null;
   orderMode: OrderMode;
+  walletBalance: number;
 }
 
 type FilterValue = "All" | DietaryType;
@@ -32,8 +33,7 @@ const filterChips: { value: FilterValue; label: string }[] = [
   { value: "VEGETARIAN", label: "Vegetarian 🥬" },
   { value: "NON_VEGETARIAN", label: "Non-Veg 🍗" },
 ];
-
-export default function MenuPageContent({ userName, items, slots, userDietary, orderMode }: Props) {
+export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
@@ -44,6 +44,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [toastUpdate, setToastUpdate] = useState<OrderStatusPayload | null>(null);
   const prevUpdateRef = useRef<string | null>(null);
+  const [displayBalance, setDisplayBalance] = useState(initialBalance);
 
   // Socket.io — real-time order status
   const { lastUpdate } = useOrderSocket();
@@ -128,6 +129,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
         return;
       }
       setConfirmedOrder(data);
+      setDisplayBalance((prev) => prev - data.totalAmount);
       clearCart();
       setCartOpen(false);
     } catch {
@@ -163,6 +165,11 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
                     {cartCount}
                   </span>
                 )}
+              </button>
+              {/* Wallet Balance Pill (Story 4.1) */}
+              <button onClick={() => router.push("/student/wallet")} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors" title="View Wallet">
+                <Wallet className="w-3.5 h-3.5 text-[var(--brand)]" />
+                <span className="text-xs font-bold text-[var(--brand)]">Rs.{displayBalance.toLocaleString()}</span>
               </button>
               <a
                 href="/student/profile"
