@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
+/* ─── CaféSmart Design System ─────────────────────────────────────────────── */
+/* OKLCH color space for vibrant, consistent dark-mode palette                */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Brand ── */
+  --brand:          oklch(0.78 0.18 55);      /* Vibrant amber-orange */
+  --brand-muted:    oklch(0.65 0.14 55);
+  --brand-dim:      oklch(0.35 0.09 55);
+
+  /* ── Surfaces ── */
+  --bg-base:        oklch(0.08 0.01 260);     /* Near-black with cool tint */
+  --bg-elevated:    oklch(0.11 0.012 260);    /* Slightly lifted surface */
+  --bg-overlay:     oklch(0.14 0.012 260);    /* Modal / dropdown layer */
+
+  /* ── Glassmorphism ── */
+  --glass-bg:       rgba(255, 255, 255, 0.06);
+  --glass-bg-hover: rgba(255, 255, 255, 0.09);
+  --glass-border:   rgba(255, 255, 255, 0.10);
+  --glass-border-strong: rgba(255, 255, 255, 0.18);
+  --glass-blur:     blur(12px);
+  --glass-blur-lg:  blur(24px);
+
+  /* ── Text ── */
+  --text-primary:   oklch(0.97 0 0);
+  --text-secondary: oklch(0.75 0.01 260);
+  --text-muted:     oklch(0.55 0.01 260);
+  --text-disabled:  oklch(0.38 0.01 260);
+
+  /* ── Semantic ── */
+  --success:        oklch(0.72 0.17 150);
+  --warning:        oklch(0.82 0.15 80);
+  --error:          oklch(0.65 0.22 25);
+  --info:           oklch(0.65 0.15 240);
+
+  /* ── Borders ── */
+  --border-subtle:  rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-strong:  rgba(255, 255, 255, 0.22);
+
+  /* ── Shadows ── */
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md:   0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 24px oklch(0.78 0.18 55 / 0.3);
+
+  /* ── Radii ── */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+
+  /* ── Transitions ── */
+  --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ─── Tailwind v4 Theme Tokens ──────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Wire Tailwind utility classes to CSS variables */
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --color-brand:      var(--brand);
+  --color-brand-muted: var(--brand-muted);
+  --color-muted:      var(--text-muted);
+  --color-border:     var(--border-default);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── shadcn/ui CSS Variables (dark theme by default) ───────────────────── */
+
+:root {
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-elevated);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-overlay);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand);
+  --primary-foreground: oklch(0.08 0.01 260);
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--brand-dim);
+  --accent-foreground: var(--brand);
+  --destructive: var(--error);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--brand);
+  --radius: 0.75rem;
+
+  /* Chart colors for future analytics */
+  --chart-1: var(--brand);
+  --chart-2: var(--success);
+  --chart-3: var(--info);
+  --chart-4: var(--warning);
+  --chart-5: var(--error);
+}
+
+/* ─── Base Reset ─────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+/* ─── Glassmorphism Utility Classes ─────────────────────────────────────── */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-strong {
+  background: var(--glass-bg-hover);
+  backdrop-filter: var(--glass-blur-lg);
+  -webkit-backdrop-filter: var(--glass-blur-lg);
+  border: 1px solid var(--glass-border-strong);
+}
+
+.glass-hover {
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.glass-hover:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-strong);
+}
+
+/* ─── Glow Effects ───────────────────────────────────────────────────────── */
+
+.glow-brand {
+  box-shadow: var(--shadow-glow);
+}
+
+.text-glow-brand {
+  text-shadow: 0 0 20px oklch(0.78 0.18 55 / 0.6);
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────── */
+
+::selection {
+  background: oklch(0.78 0.18 55 / 0.3);
+  color: var(--text-primary);
 }
