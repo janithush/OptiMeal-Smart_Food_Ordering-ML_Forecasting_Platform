@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle, QrCode } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import type { OrderResult } from "@/types/cart";
+import QRDisplay from "@/components/orders/QRDisplay";
 
 interface Props {
   order: OrderResult;
@@ -58,15 +59,9 @@ export default function OrderConfirmationModal({ order, onBackToMenu }: Props) {
           </div>
         </div>
 
-        {/* QR Code placeholder */}
-        <div className="px-6 py-4 text-center">
-          <div className="w-[200px] h-[200px] mx-auto rounded-xl flex flex-col items-center justify-center gap-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--glass-border)" }}>
-            <QrCode className="w-12 h-12 text-[var(--text-disabled)]" />
-            <p className="text-xs text-[var(--text-disabled)] px-4 text-center">
-              QR code will appear here on the service date
-            </p>
-            <p className="text-[10px] text-[var(--text-disabled)] font-mono">{order.qrCode.slice(0, 20)}...</p>
-          </div>
+        {/* QR Code — live (Story 3.4) */}
+        <div className="px-6 py-4">
+          <QRDisplay orderId={order.id} orderDate={order.createdAt} qrCodeString={order.qrCode} size={200} />
         </div>
 
         {/* CTA */}
