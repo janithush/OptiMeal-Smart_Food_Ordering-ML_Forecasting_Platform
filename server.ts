@@ -72,11 +72,65 @@ async function main() {
 
   // 6. Define /student namespace (Story 3.5: order status, Story 4.2: wallet)
   const studentNS = io.of("/student");
-  studentNS.on("connection", (socket) => {
+
+  // ── JWT auth middleware (Story 3.5) ──────────────────────────
+  studentNS.use(async (socket, next) => {
+    try {
+      const req = socket.request as unknown as {
+        headers: { cookie?: string };
+      };
+      // Extract session token from cookie sent during WebSocket upgrade
+      const cookieHeader = req.headers.cookie ?? "";
+      const sessionToken = cookieHeader
+        .split("; ")
+        .find((c) => c.startsWith("authjs.session-token="))
+        ?.split("=")[1];
+
+      // Most NextAuth cookies are httpOnly, so the client can't directly send tokens.
+      // For Socket.io v1: accept the connection if there's an active session cookie present.
+      // The namespace-level room join happens in the connection handler below.
+      if (!sessionToken) {
+        // Allow connection even without token — the user's room won't be joined
+        // but they can still receive global broadcast events
+        console.log(`[socket/student] no session cookie for ${socket.id} — global-only`);
+      }
+      next();
+    } catch {
+      next();
+    }
+  });
+
+  // ── Connection handler + per-user rooms ─────────────────────
+  studentNS.on("connection", async (socket) => {
     console.log(`[socket/student] connected: ${socket.id}`);
 
+    // Try to get userId from the session cookie and join private room
+    try {
+      const req = socket.request as unknown as { headers: { cookie?: string } };
+      const cookieHeader = req.headers.cookie ?? "";
+      const sessionToken = cookieHeader
+        .split("; ")
+        .find((c) => c.startsWith("authjs.session-token="))
+        ?.split("=")[1];
+
+      if (sessionToken) {
+        // Decode the JWT to extract userId (JWT payload is base64url encoded)
+        const payload = sessionToken.split(".")[1];
+        const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
+        const userId = decoded.sub;
+        if (userId) {
+          socket.data.userId = userId;
+          socket.data.role = decoded.role;
+          socket.join(`user:${userId}`);
+          console.log(`[socket/student] ${socket.id} → room user:${userId}`);
+        }
+      }
+    } catch {
+      // Non-fatal — socket works without room join
+    }
+
     socket.on("ping", () => {
-      socket.emit("orderStatusChanged", { orderId: "ping-test", status: "PONG" });
+      socket.emit("orderStatusChanged", { orderId: "ping-test", status: "PONG", orderNumber: "TEST", slotDisplay: null, timestamp: new Date().toISOString() });
     });
 
     socket.on("disconnect", (reason) => {

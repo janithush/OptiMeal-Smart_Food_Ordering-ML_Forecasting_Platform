@@ -8,8 +8,14 @@
 
 // Events the SERVER emits TO the CLIENT
 export interface ServerToClientEvents {
-  // Story 3.5: order status updates
-  orderStatusChanged: (payload: { orderId: string; status: string }) => void;
+  // Story 3.5: order status updates (payload matches OrderStatusPayload)
+  orderStatusChanged: (payload: {
+    orderId: string;
+    status: string;
+    orderNumber: string;
+    slotDisplay: string | null;
+    timestamp: string;
+  }) => void;
   // Story 6.1: admin dashboard live KPI updates
   dashboardUpdate: (payload: Record<string, unknown>) => void;
   // Story 4.2: wallet balance updated after webhook

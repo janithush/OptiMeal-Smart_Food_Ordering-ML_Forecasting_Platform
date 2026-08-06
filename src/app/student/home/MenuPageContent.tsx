@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Clock, ShoppingBag, ClipboardList } from "lucide-react";
@@ -11,6 +11,10 @@ import MenuItemCard from "@/components/menu/MenuItemCard";
 import MenuItemDetail from "@/components/menu/MenuItemDetail";
 import CartPanel from "@/components/cart/CartPanel";
 import OrderConfirmationModal from "@/components/cart/OrderConfirmationModal";
+import OrderStatusToast from "@/components/notifications/OrderStatusToast";
+import { useOrderSocket } from "@/hooks/useOrderSocket";
+import { showNotification } from "@/lib/notifications";
+import type { OrderStatusPayload } from "@/lib/order-events";
 
 interface Props {
   userName: string;
@@ -38,6 +42,29 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderResult | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [toastUpdate, setToastUpdate] = useState<OrderStatusPayload | null>(null);
+  const prevUpdateRef = useRef<string | null>(null);
+
+  // Socket.io — real-time order status
+  const { lastUpdate } = useOrderSocket();
+
+  useEffect(() => {
+    if (lastUpdate && lastUpdate.timestamp !== prevUpdateRef.current) {
+      prevUpdateRef.current = lastUpdate.timestamp;
+      setToastUpdate(lastUpdate);
+
+      // Browser push notification
+      const statusLabel: Record<string, string> = {
+        IN_PREPARATION: "being prepared",
+        READY: "ready for pickup",
+        COLLECTED: "collected",
+      };
+      showNotification(
+        `${lastUpdate.orderNumber} — Order Update`,
+        `Your order is now ${statusLabel[lastUpdate.status] ?? lastUpdate.status}${lastUpdate.slotDisplay ? ` · ${lastUpdate.slotDisplay}` : ""}`
+      );
+    }
+  }, [lastUpdate]);
 
   const available = items.filter((i) => i.availability !== "Sold Out").length;
   const soldOut = items.filter((i) => i.availability === "Sold Out").length;
@@ -110,6 +137,9 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
 
   return (
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
+      {/* Real-time order status toast (Story 3.5) */}
+      <OrderStatusToast update={toastUpdate} />
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
         <div className="max-w-lg mx-auto">
