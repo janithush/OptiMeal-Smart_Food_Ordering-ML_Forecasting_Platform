@@ -6,7 +6,9 @@
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ml:setup": "cd ml-service && python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt",
+    "ml:dev": "cd ml-service && .venv\\Scripts\\uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
   },
   "dependencies": {
     "@prisma/client": "^7.9.1",
