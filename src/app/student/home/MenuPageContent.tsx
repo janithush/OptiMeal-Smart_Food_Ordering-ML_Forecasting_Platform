@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, ShoppingBag } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Clock, ShoppingBag, ClipboardList } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import type { CartItem, OrderResult } from "@/types/cart";
@@ -29,6 +30,7 @@ const filterChips: { value: FilterValue; label: string }[] = [
 ];
 
 export default function MenuPageContent({ userName, items, slots, userDietary, orderMode }: Props) {
+  const router = useRouter();
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -119,6 +121,10 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {/* My Orders Button */}
+              <button onClick={() => router.push("/student/orders")} className="relative w-9 h-9 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors" title="My Orders">
+                <ClipboardList className="w-5 h-5 text-[var(--text-secondary)]" />
+              </button>
               {/* Cart Button */}
               <button onClick={() => setCartOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">
                 <ShoppingBag className="w-5 h-5 text-[var(--text-secondary)]" />
