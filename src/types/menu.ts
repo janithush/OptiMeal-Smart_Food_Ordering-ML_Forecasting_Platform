@@ -18,6 +18,7 @@ export interface MenuItemData {
 export interface PickupSlotData {
   id: string;
   slotTime: string;
+  displayLabel: string;     // "11:30 - 11:45"
   maxCapacity: number;
   currentCount: number;
 }

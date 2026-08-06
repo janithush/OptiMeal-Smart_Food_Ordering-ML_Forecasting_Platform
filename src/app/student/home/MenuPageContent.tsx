@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Clock } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
+import type { OrderMode } from "@/lib/order-mode";
 import MenuItemCard from "@/components/menu/MenuItemCard";
 import MenuItemDetail from "@/components/menu/MenuItemDetail";
 
@@ -11,6 +13,7 @@ interface Props {
   items: MenuItemData[];
   slots: PickupSlotData[];
   userDietary: DietaryType | null;
+  orderMode: OrderMode;
 }
 
 type FilterValue = "All" | DietaryType;
@@ -22,9 +25,10 @@ const filterChips: { value: FilterValue; label: string }[] = [
   { value: "NON_VEGETARIAN", label: "Non-Veg 🍗" },
 ];
 
-export default function MenuPageContent({ userName, items, slots, userDietary }: Props) {
+export default function MenuPageContent({ userName, items, slots, userDietary, orderMode }: Props) {
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
   const available = items.filter((i) => i.availability !== "Sold Out").length;
   const soldOut = items.filter((i) => i.availability === "Sold Out").length;
@@ -34,12 +38,14 @@ export default function MenuPageContent({ userName, items, slots, userDietary }:
     return items.filter((i) => i.dietaryType === filter);
   }, [items, filter]);
 
+  const selectedSlot = slots.find((s) => s.id === selectedSlotId);
+
   return (
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <h1 className="text-lg font-bold text-[var(--text-primary)]">Today&apos;s Menu</h1>
               <p className="text-xs text-[var(--text-muted)]">
@@ -54,8 +60,20 @@ export default function MenuPageContent({ userName, items, slots, userDietary }:
             </a>
           </div>
 
+          {/* Order Mode Banner (Story 3.2) */}
+          <div
+            className={`mb-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
+              orderMode.isPreOrder
+                ? "bg-[var(--brand)]/10 text-[var(--brand)] border border-[var(--brand)]/20"
+                : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            {orderMode.message}
+          </div>
+
           {/* Filter Chips */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
             {filterChips.map((chip) => (
               <button
                 key={chip.value}
@@ -100,7 +118,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary }:
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2, delay: i * 0.03 }}
                 >
-                  <MenuItemCard item={item} onTap={setSelectedItem} />
+                  <MenuItemCard item={item} onTap={(itm) => { setSelectedSlotId(null); setSelectedItem(itm); }} />
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -108,14 +126,25 @@ export default function MenuPageContent({ userName, items, slots, userDietary }:
         )}
       </div>
 
+      {/* Selected slot indicator */}
+      {selectedSlot && orderMode.isPreOrder && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-[var(--brand)]/20 border border-[var(--brand)]/30 text-[var(--brand)] text-xs font-medium shadow-[var(--shadow-glow)]">
+          🕐 Selected slot: {selectedSlot.displayLabel}
+        </div>
+      )}
+
       {/* Item Detail Modal */}
       {selectedItem && (
         <MenuItemDetail
           item={selectedItem}
           slots={slots}
+          selectedSlotId={selectedSlotId}
+          orderMode={orderMode}
           onClose={() => setSelectedItem(null)}
-          onAddToCart={() => {
-            /* Story 3.3 */
+          onSlotSelect={setSelectedSlotId}
+          onAddToCart={(slotId) => {
+            /* Story 3.3 — cart will receive item + slotId */
+            console.log("Add to cart:", selectedItem.name, slotId);
           }}
         />
       )}

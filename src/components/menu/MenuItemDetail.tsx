@@ -3,19 +3,24 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Clock, AlertTriangle } from "lucide-react";
 import type { MenuItemData, PickupSlotData } from "@/types/menu";
+import type { OrderMode } from "@/lib/order-mode";
 import DietaryBadge from "./DietaryBadge";
 import AvailabilityBadge from "./AvailabilityBadge";
 
 interface Props {
   item: MenuItemData;
   slots: PickupSlotData[];
+  selectedSlotId: string | null;
+  orderMode: OrderMode;
   onClose: () => void;
-  onAddToCart?: () => void;
+  onSlotSelect: (slotId: string) => void;
+  onAddToCart?: (slotId: string | null) => void;
 }
 
-export default function MenuItemDetail({ item, slots, onClose, onAddToCart }: Props) {
+export default function MenuItemDetail({ item, slots, selectedSlotId, orderMode, onClose, onSlotSelect, onAddToCart }: Props) {
   const hasSpecial = item.specialPrice !== null && item.specialPrice < item.basePrice;
   const isSoldOut = item.availability === "Sold Out";
+  const showSlots = orderMode.isPreOrder && !isSoldOut;
 
   const initials = item.name
     .split(" ")
@@ -122,50 +127,75 @@ export default function MenuItemDetail({ item, slots, onClose, onAddToCart }: Pr
               </div>
             )}
 
-            {/* Pickup Slots */}
-            <div>
-              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">Pickup Slots — Today</h3>
-              {slots.length > 0 ? (
+            {/* Pickup Slots — selectable (Story 3.2) */}
+            {showSlots && (
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                  Select Pickup Slot — Today
+                </h3>
                 <div className="space-y-2">
                   {slots.map((slot) => {
                     const remaining = slot.maxCapacity - slot.currentCount;
+                    const isFull = remaining <= 0;
+                    const isSelected = selectedSlotId === slot.id;
                     const pct = remaining / slot.maxCapacity;
                     const barColor =
                       pct <= 0.2 ? "rgb(248,113,113)" : pct <= 0.5 ? "rgb(250,204,21)" : "rgb(74,222,128)";
+
                     return (
-                      <div
+                      <button
                         key={slot.id}
-                        className="flex items-center gap-3 p-2.5 rounded-xl"
-                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--glass-border)" }}
+                        disabled={isFull}
+                        onClick={() => onSlotSelect(slot.id)}
+                        className={`w-full text-left flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 ${
+                          isSelected
+                            ? "border-[var(--brand)] bg-[var(--brand)]/10"
+                            : "border-[rgba(255,255,255,0.1)]"
+                        } ${isFull ? "opacity-40 cursor-not-allowed" : "hover:bg-white/[0.04] cursor-pointer"}`}
+                        style={{
+                          background: isSelected ? "var(--brand)/10" : "rgba(255,255,255,0.03)",
+                          border: isSelected ? "1px solid var(--brand)" : "1px solid var(--glass-border)",
+                        }}
                       >
-                        <Clock className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
-                        <span className="text-sm text-[var(--text-primary)] min-w-[80px]">{slot.slotTime}</span>
+                        <Clock className={`w-4 h-4 shrink-0 ${isSelected ? "text-[var(--brand)]" : "text-[var(--text-muted)]"}`} />
+                        <span className={`text-sm min-w-[110px] ${isSelected ? "text-[var(--brand)] font-medium" : "text-[var(--text-primary)]"}`}>
+                          {slot.displayLabel}
+                        </span>
                         <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{ width: `${Math.round(pct * 100)}%`, background: barColor }}
                           />
                         </div>
-                        <span className="text-xs text-[var(--text-muted)] min-w-[70px] text-right">
-                          {remaining}/{slot.maxCapacity}
+                        <span className={`text-xs min-w-[60px] text-right ${isFull ? "text-red-400" : "text-[var(--text-muted)]"}`}>
+                          {isFull ? "Full" : `${remaining}/${slot.maxCapacity}`}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-              ) : (
-                <p className="text-sm text-[var(--text-disabled)] italic">Pickup slots not yet available. Check back later.</p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Walk-In Mode Notice */}
+            {!orderMode.isPreOrder && !isSoldOut && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs text-center">
+                Walk-in mode — order will be fulfilled on a best-effort basis, no time slot.
+              </div>
+            )}
 
             {/* Add to Cart */}
             <button
-              onClick={onAddToCart}
-              disabled={isSoldOut}
+              onClick={() => onAddToCart?.(selectedSlotId)}
+              disabled={isSoldOut || (orderMode.isPreOrder && !selectedSlotId)}
               className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ background: "var(--brand)", color: "#000" }}
             >
-              {isSoldOut ? "Sold Out" : "Add to Cart — " + `Rs.${hasSpecial ? item.specialPrice : item.basePrice}`}
+              {isSoldOut
+                ? "Sold Out"
+                : orderMode.isPreOrder && !selectedSlotId
+                ? "Select a pickup slot to continue"
+                : "Add to Cart — " + `Rs.${hasSpecial ? item.specialPrice : item.basePrice}`}
             </button>
           </div>
         </motion.div>
