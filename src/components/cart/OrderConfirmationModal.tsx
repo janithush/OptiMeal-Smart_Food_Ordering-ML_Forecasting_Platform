@@ -50,7 +50,10 @@ export default function OrderConfirmationModal({ order, onBackToMenu }: Props) {
           )}
 
           {!order.pickupSlot && order.type === "WALK_IN" && (
-            <div className="text-center text-xs text-amber-400 pt-2">Walk-In Order</div>
+            <div className="text-center pt-2 space-y-1">
+              <p className="text-xs text-amber-400">Walk-In Order &middot; Estimated wait ~15 min</p>
+              <p className="text-[10px] text-amber-400/50">Earns 0 Canteen Coins</p>
+            </div>
           )}
 
           <div className="flex justify-between text-base font-bold pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>

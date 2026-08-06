@@ -177,11 +177,17 @@ export default function MenuItemDetail({ item, slots, selectedSlotId, orderMode,
               </div>
             )}
 
-            {/* Walk-In Mode Notice */}
+            {/* Walk-In Mode Notice (Story 3.6 — enhanced) */}
             {!orderMode.isPreOrder && !isSoldOut && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs text-center">
-                Walk-in mode — order will be fulfilled on a best-effort basis, no time slot.
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-center space-y-1">
+                <p className="text-amber-400">Walk-In Mode — no time slot &middot; {orderMode.coinsInfo}</p>
+                {orderMode.estimateWait && <p className="text-amber-400/70">Estimated wait: {orderMode.estimateWait}</p>}
               </div>
+            )}
+
+            {/* Coins Note for Walk-In (always visible when walk-in + not sold out) */}
+            {!orderMode.isPreOrder && !isSoldOut && (
+              <p className="text-center text-[11px] text-amber-400/60">⚠️ Walk-in orders earn 0 Canteen Coins</p>
             )}
 
             {/* Add to Cart */}
@@ -195,7 +201,7 @@ export default function MenuItemDetail({ item, slots, selectedSlotId, orderMode,
                 ? "Sold Out"
                 : orderMode.isPreOrder && !selectedSlotId
                 ? "Select a pickup slot to continue"
-                : "Add to Cart — " + `Rs.${hasSpecial ? item.specialPrice : item.basePrice}`}
+                : `Add to Cart — Rs.${hasSpecial ? item.specialPrice : item.basePrice}${!orderMode.isPreOrder ? " (Walk-In)" : ""}`}
             </button>
           </div>
         </motion.div>

@@ -91,7 +91,13 @@ export default function CartPanel({ items, selectedSlot, orderMode, isOpen, onCl
                   </div>
                 )}
                 {!orderMode.isPreOrder && (
-                  <div className="text-xs text-amber-400 text-center">Walk-In Order — no time slot</div>
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-amber-400 font-medium">Walk-In Order</span>
+                      {orderMode.estimateWait && <span className="text-amber-400/70">Est. wait {orderMode.estimateWait}</span>}
+                    </div>
+                    <p className="text-[10px] text-amber-400/50">No time slot &middot; {orderMode.coinsInfo}</p>
+                  </div>
                 )}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[var(--text-primary)]">Total</span>
