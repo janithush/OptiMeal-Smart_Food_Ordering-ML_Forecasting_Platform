@@ -4,6 +4,8 @@ export type OrderMode = {
   mode: "PRE_ORDER" | "WALK_IN";
   message: string;
   isPreOrder: boolean;
+  estimateWait: string | null;
+  coinsInfo: string;
 };
 
 /**
@@ -21,5 +23,7 @@ export function getOrderMode(): OrderMode {
       ? "Pre-Order Mode — order by 9:00 AM for guaranteed pickup"
       : "Walk-In Mode — best-effort fulfilment, no time slot required",
     isPreOrder,
+    estimateWait: isPreOrder ? null : "~15 min",
+    coinsInfo: isPreOrder ? "Earns 2 Coins per LKR 100" : "Earns 0 Canteen Coins",
   };
 }

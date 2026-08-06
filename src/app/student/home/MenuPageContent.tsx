@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Clock, ShoppingBag, ClipboardList } from "lucide-react";
+import { Clock, ShoppingBag, ClipboardList, Timer } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import type { CartItem, OrderResult } from "@/types/cart";
@@ -173,7 +173,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
             </div>
           </div>
 
-          {/* Order Mode Banner */}
+          {/* Order Mode Banner (Story 3.6 — enhanced) */}
           <div
             className={`mb-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
               orderMode.isPreOrder
@@ -181,8 +181,12 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
                 : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
             }`}
           >
-            <Clock className="w-3.5 h-3.5 shrink-0" />
-            {orderMode.message}
+            {orderMode.isPreOrder ? <Clock className="w-3.5 h-3.5 shrink-0" /> : <Timer className="w-3.5 h-3.5 shrink-0" />}
+            <span>
+              {orderMode.message}
+              {orderMode.estimateWait && <> &middot; Est. wait {orderMode.estimateWait}</>}
+              {!orderMode.isPreOrder && <> &middot; {orderMode.coinsInfo}</>}
+            </span>
           </div>
 
           {/* Filter Chips */}
