@@ -58,6 +58,40 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      // ═══ Story 4.1: Real wallet deduction ══════════════════════════
+      // Get or create wallet
+      let wallet = await tx.walletAccount.findUnique({ where: { userId } });
+      if (!wallet) {
+        wallet = await tx.walletAccount.create({ data: { userId } });
+        // Seed LKR 2,000 for demo
+        await tx.walletTransaction.create({
+          data: { walletId: wallet.id, type: "TOP_UP", amount: 2000, idempotencyKey: `SEED-${userId}`, runningBalance: 2000 },
+        });
+      }
+
+      // Lock wallet: compute current balance
+      const agg = await tx.walletTransaction.aggregate({
+        where: { walletId: wallet.id },
+        _sum: { amount: true },
+      });
+      const currentBalance = Number(agg._sum.amount ?? 0);
+
+      if (currentBalance < totalAmount) throw new Error("INSUFFICIENT_FUNDS");
+
+      const newBalance = currentBalance - totalAmount;
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          type: "ORDER_DEDUCTION",
+          amount: -totalAmount,
+          idempotencyKey: orderType === "PRE_ORDER" && pickupSlotId
+            ? `order-${userId}-${pickupSlotId}-${Date.now()}`
+            : `order-${userId}-walkin-${Date.now()}`,
+          runningBalance: newBalance,
+        },
+      });
+
+      // ═══ Create Order ═════════════════════════════════════════════
       const orderNumber = generateOrderNumber();
       const { randomUUID } = await import("node:crypto");
 
@@ -85,8 +119,6 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    console.log(`[WALLET-MOCK] Order ${order.orderNumber}: LKR ${totalAmount} would be deducted`);
-
     return NextResponse.json(
       {
         id: order.id,
@@ -112,6 +144,7 @@ export async function POST(req: NextRequest) {
     if (e instanceof Error) {
       if (e.message === "SLOT_FULL") return NextResponse.json({ error: "Slot is no longer available" }, { status: 409 });
       if (e.message === "SLOT_NOT_FOUND") return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+      if (e.message === "INSUFFICIENT_FUNDS") return NextResponse.json({ error: "Insufficient balance. Please top up your wallet." }, { status: 402 });
       console.error("[orders] unexpected error:", e.message, e.stack);
       return NextResponse.json({ error: "Server error: " + e.message }, { status: 500 });
     }

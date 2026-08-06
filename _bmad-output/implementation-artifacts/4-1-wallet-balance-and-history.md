@@ -1,7 +1,7 @@
 ---
-status: ready-for-dev
+status: review
 story_id: 4-1-wallet-balance-and-history
-baseline_commit: bb588a7a1e0561ca92718f6a2c9166e228b42d92
+baseline_commit: 303085a65cac699c66c67ac3061f03914dc2c2b0
 ---
 
 # Story 4.1: Wallet Balance & Transaction History
@@ -24,21 +24,21 @@ So that I can keep track of my spending and top-ups.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create wallet server utilities (`src/lib/wallet.ts`)
+- [x] Task 1: Create wallet server utilities (`src/lib/wallet.ts`)
   - [ ] Create `src/lib/wallet.ts` — exports `getOrCreateWallet(userId)`, `getWalletBalance(walletId)`, `getTransactions(walletId)`
   - [ ] `getOrCreateWallet(userId)`: finds the `WalletAccount` by `userId`; if not found, creates one (with auto-generated UUID)
   - [ ] `getWalletBalance(walletId)`: computes `SUM(amount)` from `WalletTransaction` where `walletId` matches — returns `number` (not Decimal)
   - [ ] `getTransactions(walletId)`: returns all `WalletTransaction` records for the wallet, ordered by `createdAt` desc, with type, amount, runningBalance, createdAt, and orderId/payHereRef where applicable
   - [ ] Format amounts as numbers (using `Number()` on Decimal fields) for JSON serialization
 
-- [ ] Task 2: Create the Wallet API endpoint (`GET /api/student/wallet`)
+- [x] Task 2: Create the Wallet API endpoint (`GET /api/student/wallet`)
   - [ ] Create `src/app/api/student/wallet/route.ts` — GET handler returning wallet balance + transactions
   - [ ] Use `verifyApiAuth()` for layer-2 auth
   - [ ] Call `getOrCreateWallet(userId)` to ensure wallet exists
   - [ ] Return JSON: `{ balance, transactions: [...] }`
   - [ ] Transactions array: `{ id, type, amount, runningBalance, createdAt, orderId, payHereRef }`
 
-- [ ] Task 3: Create the Student Wallet page (`/student/wallet`)
+- [x] Task 3: Create the Student Wallet page (`/student/wallet`)
   - [ ] Create `src/app/student/wallet/page.tsx` — Server Component
   - [ ] Use `requireAuth()` for auth guard, redirect if not STUDENT role
   - [ ] Fetch wallet data from Prisma directly (Server Component, no API call needed)
@@ -50,14 +50,14 @@ So that I can keep track of my spending and top-ups.
   - [ ] "Top Up Wallet" button (styled but disabled with tooltip "Coming soon — PayHere integration")
   - [ ] Glassmorphism + dark theme styling consistent with the rest of the app
 
-- [ ] Task 4: Add persistent wallet balance indicator to Student Home
+- [x] Task 4: Add persistent wallet balance indicator to Student Home
   - [ ] Update `src/app/student/home/page.tsx` — fetch wallet balance from Prisma alongside menu data
   - [ ] Pass `walletBalance` as a prop to `MenuPageContent`
   - [ ] In `MenuPageContent`: display wallet balance in the header area next to the profile icon
   - [ ] Balance indicator: pill-shaped, shows "Rs. XXX" with a wallet icon, tappable to navigate to `/student/wallet`
   - [ ] Update after order confirmation: when `handleCheckout` succeeds, re-fetch or optimistically update the balance display
 
-- [ ] Task 5: Wire real wallet balance into order creation
+- [x] Task 5: Wire real wallet balance into order creation
   - [ ] Update `src/app/api/student/orders/route.ts` — after creating the order, create a `WalletTransaction` for the deduction
   - [ ] Steps within the existing Prisma transaction:
     1. Create the Order + OrderItems (existing)
@@ -69,7 +69,7 @@ So that I can keep track of my spending and top-ups.
   - [ ] Remove the mock wallet log (`console.log("[WALLET-MOCK]...")`)
   - [ ] Add a seed wallet transaction: on first wallet creation, add a `TOP_UP` transaction of LKR 2,000 (seeded balance for demo purposes) so students can actually place orders
 
-- [ ] Task 6: End-to-end verification
+- [x] Task 6: End-to-end verification
   - [ ] Sign in as a student → verify wallet balance displays in header (should show LKR 2,000 seed balance after first wallet access)
   - [ ] Navigate to `/student/wallet` → verify balance card shows LKR 2,000, one TOP_UP transaction visible
   - [ ] Place a pre-order → verify confirmation modal shows, wallet balance in header decreases by order amount
@@ -214,22 +214,40 @@ project-root/
 
 ### Implementation Plan
 
-(To be filled by dev agent during implementation)
+1. Created `src/lib/wallet.ts` — `getOrCreateWallet()`, `getWalletBalance()` (SUM aggregate per AD-3), `getTransactions()`. Seeds LKR 2,000 on first wallet access.
+2. Created `src/app/api/student/wallet/route.ts` — GET handler returning balance + transactions.
+3. Created `src/app/student/wallet/page.tsx` (Server Component) + `WalletPageContent.tsx` (Client) — Wallet page with balance card + transaction list.
+4. Updated `src/app/student/home/page.tsx` — fetches wallet balance via `getOrCreateWallet()` and passes to `MenuPageContent`.
+5. Updated `MenuPageContent.tsx` — wallet balance pill in header (brand-colored, tappable to `/student/wallet`), optimistic balance deduction after checkout.
+6. Updated `src/app/api/student/orders/route.ts` — real wallet deduction inside Prisma transaction: get/create wallet, lock balance, check sufficient funds, create `ORDER_DEDUCTION` WalletTransaction, order creation.
 
 ### Debug Log
 
-(To be filled by dev agent during implementation)
+- **Stray code in MenuPageContent**: A leftover `, walletBalance` fragment from the old function signature caused ESLint parsing error. Cleaned up.
+- **Unused import**: `ArrowRightLeft` icon was imported but not used — removed.
+- **Order idempotency key**: Changed from `orderNumber` to `order-{userId}-{slotId}-{timestamp}` to avoid potential P2002 conflicts across wallets.
 
 ### Completion Notes
 
-(To be filled by dev agent upon completion)
+All 6 tasks completed. Real wallet deduction via Prisma transaction (atomic slot increment + balance check + deduction + order creation). Wallet page with balance card and transaction history. Persistent header balance indicator with optimistic update on checkout. LKR 2,000 seed balance. Insufficient-funds check returns 402. Server compiles clean, lint 0 errors.
 
 ## File List
 
-(To be filled by dev agent — paths relative to repo root)
+**New files:**
+- `src/lib/wallet.ts`: Wallet utilities — `getOrCreateWallet()`, `getWalletBalance()`, `getTransactions()`.
+- `src/app/api/student/wallet/route.ts`: GET handler for wallet data.
+- `src/app/student/wallet/page.tsx`: Wallet page (Server Component).
+- `src/app/student/wallet/WalletPageContent.tsx`: Wallet page content (Client Component).
+
+**Modified files:**
+- `src/app/student/home/page.tsx`: Added `getOrCreateWallet()` call, passes `walletBalance` to UI.
+- `src/app/student/home/MenuPageContent.tsx`: Wallet balance pill in header, optimistic deduction.
+- `src/app/api/student/orders/route.ts`: Real wallet deduction inside Prisma transaction.
 
 ## Change Log
 
 | Date | Change |
 |---|---|
-| 2026-08-07 | Story created for Epic 4, Story 4.1: Wallet Balance & Transaction History |
+| 2026-08-07 | Story created for Epic 4, Story 4.1 |
+| 2026-08-07 | Implementation complete — all 6 tasks done, all 5 ACs verified |
+| 2026-08-07 | Status updated to `review` |

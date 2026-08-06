@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ensureTodaysSlots, toDisplayLabel } from "@/lib/slots";
 import { getOrderMode } from "@/lib/order-mode";
+import { getOrCreateWallet } from "@/lib/wallet";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import MenuPageContent from "./MenuPageContent";
@@ -48,6 +49,9 @@ export default async function StudentHomePage() {
 
   // ═══ Story 3.2: Detect pre-order vs walk-in mode ═════════════════
   const orderMode: OrderMode = getOrderMode();
+
+  // ═══ Story 4.1: Wallet balance ═════════════════════════════
+  const { balance: walletBalance } = await getOrCreateWallet(session.user.id);
 
   // ─── Query today's menu ──────────────────────────────────────────
   const todayStart = startOfToday();
@@ -104,6 +108,7 @@ export default async function StudentHomePage() {
     <MenuPageContent
       userName={user.name ?? session.user.name ?? "Student"}
       items={items}
+      walletBalance={walletBalance}
       slots={slots}
       userDietary={user.dietaryPreference as DietaryType | null}
       orderMode={orderMode}
