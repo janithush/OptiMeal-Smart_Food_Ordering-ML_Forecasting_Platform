@@ -1,11 +1,22 @@
 import { requireAuth } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
 export default async function StudentHomePage() {
   const session = await requireAuth();
 
   if (session.user.role !== "STUDENT") {
     redirect("/forbidden");
+  }
+
+  // Onboarding guard — read from DB (JWT may be stale)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingDone: true },
+  });
+
+  if (user && !user.onboardingDone) {
+    redirect("/student/onboarding");
   }
 
   return (
