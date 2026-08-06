@@ -1,7 +1,10 @@
 import { requireAuth } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { ensureTodaysSlots, toDisplayLabel } from "@/lib/slots";
+import { getOrderMode } from "@/lib/order-mode";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
+import type { OrderMode } from "@/lib/order-mode";
 import MenuPageContent from "./MenuPageContent";
 
 function startOfToday(): Date {
@@ -33,6 +36,19 @@ export default async function StudentHomePage() {
     redirect("/student/onboarding");
   }
 
+  // ═══ Story 3.2: Ensure today's slots exist ═══════════════════════
+  const rawSlots = await ensureTodaysSlots();
+  const slots: PickupSlotData[] = rawSlots.map((s) => ({
+    id: s.id,
+    slotTime: s.slotTime,
+    displayLabel: toDisplayLabel(s.slotTime),
+    maxCapacity: s.maxCapacity,
+    currentCount: s.currentCount,
+  }));
+
+  // ═══ Story 3.2: Detect pre-order vs walk-in mode ═════════════════
+  const orderMode: OrderMode = getOrderMode();
+
   // ─── Query today's menu ──────────────────────────────────────────
   const todayStart = startOfToday();
   const todayEnd = endOfToday();
@@ -49,19 +65,6 @@ export default async function StudentHomePage() {
     },
     orderBy: { name: "asc" },
   });
-
-  // ─── Query today's pickup slots ───────────────────────────────────
-  const pickupSlots = await prisma.pickupSlot.findMany({
-    where: { date: { gte: todayStart, lte: todayEnd } },
-    orderBy: { slotTime: "asc" },
-  });
-
-  const slots: PickupSlotData[] = pickupSlots.map((s) => ({
-    id: s.id,
-    slotTime: s.slotTime,
-    maxCapacity: s.maxCapacity,
-    currentCount: s.currentCount,
-  }));
 
   // ─── Compute availability per item ───────────────────────────────
   const MAX_PER_ITEM = 100;
@@ -103,6 +106,7 @@ export default async function StudentHomePage() {
       items={items}
       slots={slots}
       userDietary={user.dietaryPreference as DietaryType | null}
+      orderMode={orderMode}
     />
   );
 }
