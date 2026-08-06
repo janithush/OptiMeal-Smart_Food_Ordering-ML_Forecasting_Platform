@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClipboardList, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import OrderDetail from "@/components/orders/OrderDetail";
+import { useOrderSocket } from "@/hooks/useOrderSocket";
 
 interface OrderItemData {
   menuItemName: string;
@@ -28,9 +29,24 @@ interface Props {
   orders: OrderData[];
 }
 
-export default function OrdersPageContent({ orders }: Props) {
+export default function OrdersPageContent({ orders: initialOrders }: Props) {
   const router = useRouter();
+  const [orders, setOrders] = useState(initialOrders);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Socket.io — register handler via onUpdate callback (stable, no effect needed)
+  const { onUpdate } = useOrderSocket();
+
+  useEffect(() => {
+    const handler = (payload: { orderId: string; status: string }) => {
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === payload.orderId ? { ...o, status: payload.status } : o
+        )
+      );
+    };
+    onUpdate(handler);
+  }, [onUpdate]);
 
   return (
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)] py-10 px-4">
