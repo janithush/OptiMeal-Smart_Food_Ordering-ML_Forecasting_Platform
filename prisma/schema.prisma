@@ -312,3 +312,15 @@ model ProcurementAlert {
   isResolved     Boolean    @default(false)
   createdAt      DateTime   @default(now())
 }
+
+// ─── Seed / Historical Data ──────────────────────────────────────
+
+model QueueTimeRecord {
+  id              String   @id @default(uuid())
+  date            DateTime @db.Date
+  slotTime        String                           // "11:30", "12:00", "12:30", "13:00"
+  avgWaitMinutes  Int
+  createdAt       DateTime @default(now())
+
+  @@unique([date, slotTime])
+}
