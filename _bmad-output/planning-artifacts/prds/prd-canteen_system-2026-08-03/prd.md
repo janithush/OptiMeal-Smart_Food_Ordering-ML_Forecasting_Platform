@@ -47,7 +47,6 @@ The result: **students never wait, kitchens never guess, nothing goes to waste.*
 
 ### 2.2 Non-Users (v1)
 
-- **External / non-university users** — restricted to `fot.ruh.ac.lk` email domain.
 - **Suppliers / vendors** — procurement alerts generate a PDF only; no supplier-facing interface.
 - **Academic staff / lecturers** — [ASSUMPTION: students only; staff is a v2 consideration.]
 - **Multiple canteens** — single-canteen scope.
@@ -94,8 +93,8 @@ The result: **students never wait, kitchens never guess, nothing goes to waste.*
 
 ## 3. Glossary
 
-- **Student** — Authenticated user (`student` role, `fot.ruh.ac.lk` email). Can browse, order, manage wallet, and view personal analytics.
-- **Admin** — Authenticated user (`admin` role). Manages menu, operations, forecasts, and procurement. No self-registration path.
+- **Student** — Authenticated user (`STUDENT` role). Can browse, order, manage wallet, and view personal analytics. Default role for all new Google OAuth sign-ins.
+- **Admin** — Authenticated user (`ADMIN` role). Manages menu, operations, forecasts, and procurement. Manually promoted in database — no self-registration path.
 - **Pre-Order** — A confirmed meal order placed before the 9:00 AM daily cutoff, specifying items and a Pickup Slot.
 - **Pickup Slot** — A 15-minute window (11:30–13:15) during which a Student collects their pre-ordered meal.
 - **Walk-In Order** — An order placed after the 9:00 AM cutoff, fulfilled best-effort from remaining inventory. Does not earn Canteen Coins.
@@ -107,7 +106,11 @@ The result: **students never wait, kitchens never guess, nothing goes to waste.*
 - **Smart Discount Trigger** — Automated Admin alert when a menu item's sales fall below 30% of Cook Plan target by 12:30 PM.
 - **Wastage Heatmap** — Admin visualisation showing 7-day rolling ingredient waste rates.
 - **QR Pickup Pass** — Unique per-order QR code for counter collection. Valid only on the order's service date.
-- **Dietary Preference** — Persistent Student profile attribute: `Vegan`, `Vegetarian`, or `Non-Vegetarian`.
+- **Dietary Preference** — Persistent Student profile attribute: `VEGAN`, `VEGETARIAN`, or `NON_VEGETARIAN`.
+- **Food Allergies** — Multi-select Student profile attribute: Nuts, Dairy, Gluten, Shellfish, Eggs, Soy, None. Used for allergen warnings on menu items.
+- **Student Registration Number** — Unique university-issued identifier (e.g., `2023/ICT/001`). Stored on User profile.
+- **Batch / Academic Year** — Student's cohort (e.g., `2023/2024`). Powers cohort-level analytics and ML recommendations.
+- **Profile Picture** — Google OAuth profile photo captured on sign-in; user can upload a custom image from the Profile page.
 - **Flash Deal** — Admin-initiated time-limited discount on a surplus item, delivered as a push notification.
 - **Procurement Alert** — Admin notification when forecasted ingredient need exceeds current stock. Generates a PDF Purchase Order.
 
@@ -116,16 +119,33 @@ The result: **students never wait, kitchens never guess, nothing goes to waste.*
 
 ### 4.1 Authentication & Role-Based Access Control
 
-**Description:** CaféSmart uses a simulated University SSO flow restricted to the `fot.ruh.ac.lk` email domain via Google OAuth. New authenticated users receive the `student` role automatically. Admin accounts are pre-provisioned — no self-registration path. JWT tokens carry role claims enforced by Next.js middleware on all API routes. [ASSUMPTION: Google OAuth configured to restrict to the fot.ruh.ac.lk Google Workspace domain.]
+**Description:** CaféSmart uses Google OAuth for authentication via NextAuth.js. Any valid Google account can sign in — there is no email domain restriction. New authenticated users receive the `STUDENT` role automatically. Their Google profile picture, name, and email are captured and stored in the database on first sign-in. Admin accounts are pre-provisioned by manually promoting a User's role in the database — no self-registration path. JWT tokens carry role claims enforced by Next.js middleware on all API routes.
+
+**Profile Fields Captured:**
+
+On first sign-in, the system stores:
+- **Google Profile Picture** (`image`) — automatically captured from `profile.picture`
+- **Display Name** (`name`) — from Google profile
+- **Email** (`email`) — Google account email
+
+Students can later edit and enrich their profile from the Profile page with:
+- Custom profile picture upload
+- **Student Registration Number** (`regNo`) — e.g., `2023/ICT/001`
+- **Batch / Academic Year** (`batch`) — e.g., `2023/2024`
+- **Department** (`department`) — ICT, ET, BST
+- **Dietary Preference** (`dietaryPreference`) — Vegan, Vegetarian, Non-Vegetarian
+- **Food Allergies** (`allergies`) — Multi-select: Nuts, Dairy, Gluten, Shellfish, Eggs, Soy, None
+- **Phone Number** (`phone`) — Contact for order notifications
 
 **Functional Requirements:**
 
-#### FR-1: University SSO Login
-A Student or Admin can authenticate using their `fot.ruh.ac.lk` Google account via OAuth. The system rejects any non-matching email with: "Access restricted to Faculty of Technology accounts."
+#### FR-1: Google OAuth SSO
+A Student or Admin can authenticate using any valid Google account via OAuth. On first sign-in, the system captures and stores the user's Google profile picture, name, and email. Returning users' profile data is updated from Google on each sign-in.
 
 **Consequences (testable):**
-- Login with a non-fot.ruh.ac.lk email returns an error and creates no session.
-- Valid fot.ruh.ac.lk login creates a session and routes to the role-appropriate home screen.
+- Any valid Google account can create a session.
+- New users have their Google profile picture, name, and email stored in the database.
+- Returning users' name and profile picture are refreshed from Google on sign-in.
 
 #### FR-2: Role-Based Route Protection
 All `/student/*` routes are accessible only to `student` role users. All `/admin/*` routes only to `admin` role users. Unauthenticated requests redirect to `/login`.
@@ -134,12 +154,19 @@ All `/student/*` routes are accessible only to `student` role users. All `/admin
 - A Student navigating to `/admin/dashboard` receives HTTP 403.
 - An unauthenticated request to any protected route redirects to `/login`.
 
-#### FR-3: Student Profile Onboarding
-First-time Students must complete: display name, department (ICT / ET / BST), and Dietary Preference (Vegan / Vegetarian / Non-Vegetarian) before accessing the menu. Preferences are editable from the Profile page.
+#### FR-3: Student Profile & Onboarding
+First-time Students must complete their profile before accessing the menu. Required fields: display name (pre-filled from Google), Student Registration Number, Batch/Academic Year, Department (ICT / ET / BST), Dietary Preference (Vegan / Vegetarian / Non-Veg), and Food Allergies (multi-select). Optional: phone number, profile picture (pre-filled from Google, replaceable). All fields are editable from the Profile page after onboarding.
+
+**Profile Page Features:**
+- View and edit all personal details
+- Upload/replace profile picture
+- Update Department, Dietary Preference, Allergies (menu recommendations update immediately)
+- View Google account link status
 
 **Consequences (testable):**
 - A new Student bypassing onboarding cannot reach the menu.
 - Updating Dietary Preference immediately filters the menu on next load.
+- Allergen-tagged menu items show warnings for students with matching allergies.
 
 ---
 
