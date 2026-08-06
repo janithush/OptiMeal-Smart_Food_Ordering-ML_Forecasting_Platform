@@ -2,11 +2,14 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock } from "lucide-react";
+import { Clock, ShoppingBag } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
+import type { CartItem, OrderResult } from "@/types/cart";
 import MenuItemCard from "@/components/menu/MenuItemCard";
 import MenuItemDetail from "@/components/menu/MenuItemDetail";
+import CartPanel from "@/components/cart/CartPanel";
+import OrderConfirmationModal from "@/components/cart/OrderConfirmationModal";
 
 interface Props {
   userName: string;
@@ -29,6 +32,10 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState<OrderResult | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const available = items.filter((i) => i.availability !== "Sold Out").length;
   const soldOut = items.filter((i) => i.availability === "Sold Out").length;
@@ -39,6 +46,65 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   }, [items, filter]);
 
   const selectedSlot = slots.find((s) => s.id === selectedSlotId);
+  const cartCount = cart.reduce((sum, ci) => sum + ci.quantity, 0);
+
+  // ─── Cart handlers ──────────────────────────────────────────────
+  const addToCart = (item: MenuItemData, _slotId: string | null) => {
+    setCart((prev) => {
+      const existing = prev.find((ci) => ci.menuItem.id === item.id);
+      if (existing) {
+        if (existing.quantity >= 10) return prev;
+        return prev.map((ci) => (ci.menuItem.id === item.id ? { ...ci, quantity: ci.quantity + 1 } : ci));
+      }
+      return [...prev, { menuItem: item, quantity: 1 }];
+    });
+  };
+
+  const updateQuantity = (itemId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((ci) => (ci.menuItem.id === itemId ? { ...ci, quantity: ci.quantity + delta } : ci))
+        .filter((ci) => ci.quantity > 0)
+    );
+  };
+
+  const removeFromCart = (itemId: string) => {
+    setCart((prev) => prev.filter((ci) => ci.menuItem.id !== itemId));
+  };
+
+  const clearCart = () => setCart([]);
+
+  // ─── Checkout ───────────────────────────────────────────────────
+  const handleCheckout = async () => {
+    setCheckoutError(null);
+    const body = {
+      items: cart.map((ci) => ({
+        menuItemId: ci.menuItem.id,
+        quantity: ci.quantity,
+        unitPrice: ci.menuItem.specialPrice ?? ci.menuItem.basePrice,
+      })),
+      pickupSlotId: orderMode.isPreOrder ? selectedSlotId : null,
+      orderType: orderMode.isPreOrder ? "PRE_ORDER" : "WALK_IN",
+    };
+
+    try {
+      const res = await fetch("/api/student/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCheckoutError(data.error ?? "Order failed");
+        return;
+      }
+      setConfirmedOrder(data);
+      clearCart();
+      setCartOpen(false);
+    } catch {
+      setCheckoutError("Network error — please try again");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
@@ -52,15 +118,26 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
                 Welcome, {userName} · {available} available · {soldOut} sold out
               </p>
             </div>
-            <a
-              href="/student/profile"
-              className="w-9 h-9 rounded-full overflow-hidden bg-[oklch(0.15_0.01_260)] border border-[oklch(0.25_0.01_260)] flex items-center justify-center text-[var(--text-muted)] text-sm font-bold hover:border-[var(--brand)] transition-colors"
-            >
-              {userName.charAt(0).toUpperCase()}
-            </a>
+            <div className="flex items-center gap-2">
+              {/* Cart Button */}
+              <button onClick={() => setCartOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">
+                <ShoppingBag className="w-5 h-5 text-[var(--text-secondary)]" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--brand)] text-black text-[11px] font-bold flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+              <a
+                href="/student/profile"
+                className="w-9 h-9 rounded-full overflow-hidden bg-[oklch(0.15_0.01_260)] border border-[oklch(0.25_0.01_260)] flex items-center justify-center text-[var(--text-muted)] text-sm font-bold hover:border-[var(--brand)] transition-colors"
+              >
+                {userName.charAt(0).toUpperCase()}
+              </a>
+            </div>
           </div>
 
-          {/* Order Mode Banner (Story 3.2) */}
+          {/* Order Mode Banner */}
           <div
             className={`mb-2 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
               orderMode.isPreOrder
@@ -90,6 +167,16 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
           </div>
         </div>
       </div>
+
+      {/* Checkout Error */}
+      {checkoutError && (
+        <div className="max-w-lg mx-auto px-4 pt-3">
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex justify-between items-center">
+            {checkoutError}
+            <button onClick={() => setCheckoutError(null)} className="text-red-400/60 hover:text-red-400 ml-2">✕</button>
+          </div>
+        </div>
+      )}
 
       {/* Menu Grid */}
       <div className="max-w-lg mx-auto px-4 py-4">
@@ -143,8 +230,31 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
           onClose={() => setSelectedItem(null)}
           onSlotSelect={setSelectedSlotId}
           onAddToCart={(slotId) => {
-            /* Story 3.3 — cart will receive item + slotId */
-            console.log("Add to cart:", selectedItem.name, slotId);
+            addToCart(selectedItem, slotId);
+            setSelectedItem(null);
+          }}
+        />
+      )}
+
+      {/* Cart Panel */}
+      <CartPanel
+        items={cart}
+        selectedSlot={selectedSlot ?? null}
+        orderMode={orderMode}
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        onUpdateQty={updateQuantity}
+        onRemove={removeFromCart}
+        onCheckout={handleCheckout}
+      />
+
+      {/* Order Confirmation Modal */}
+      {confirmedOrder && (
+        <OrderConfirmationModal
+          order={confirmedOrder}
+          onBackToMenu={() => {
+            setConfirmedOrder(null);
+            setSelectedSlotId(null);
           }}
         />
       )}
