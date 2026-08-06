@@ -18,3 +18,9 @@ node_modules/
 # Runtime Data
 dist/
 /src/generated/prisma
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+ml-service/.venv/
