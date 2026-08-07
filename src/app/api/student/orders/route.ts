@@ -2,6 +2,7 @@ import { verifyApiAuth } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { toDisplayLabel } from "@/lib/slots";
+import { earnCoins, redeemCoins } from "@/lib/coins";
 
 function generateOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
 
   const orderType = String(body.orderType ?? "");
   const pickupSlotId = body.pickupSlotId ?? null;
+  const coinsRedeemed = Math.max(0, Math.min(100, Number(body.coinsRedeemed ?? 0) || 0));
   const lineItems: OrderItemInput[] = Array.isArray(body.items) ? body.items : [];
 
   // Validation
@@ -76,20 +78,44 @@ export async function POST(req: NextRequest) {
       });
       const currentBalance = Number(agg._sum.amount ?? 0);
 
-      if (currentBalance < totalAmount) throw new Error("INSUFFICIENT_FUNDS");
+      const netAmount = totalAmount - coinsRedeemed;
+      if (currentBalance < netAmount) throw new Error("INSUFFICIENT_FUNDS");
 
-      const newBalance = currentBalance - totalAmount;
+      // Story 4.3: Redeem coins if requested (FIFO batch deduction)
+      let actualRedeemed = 0;
+      if (coinsRedeemed > 0) {
+        actualRedeemed = await redeemCoins(tx, userId, coinsRedeemed);
+        if (actualRedeemed > 0) {
+          // Create COINS_REDEMPTION transaction (credits back to balance offset)
+          await tx.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              type: "COINS_REDEMPTION",
+              amount: -actualRedeemed,
+              idempotencyKey: `coins-${orderType === "PRE_ORDER" && pickupSlotId ? `order-${userId}-${pickupSlotId}` : `order-${userId}-walkin`}-${Date.now()}`,
+              runningBalance: currentBalance - netAmount - actualRedeemed,
+            },
+          });
+        }
+      }
+
+      const newBalance = currentBalance - netAmount;
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           type: "ORDER_DEDUCTION",
-          amount: -totalAmount,
+          amount: -netAmount,
           idempotencyKey: orderType === "PRE_ORDER" && pickupSlotId
             ? `order-${userId}-${pickupSlotId}-${Date.now()}`
             : `order-${userId}-walkin-${Date.now()}`,
           runningBalance: newBalance,
         },
       });
+
+      // Story 4.3: Earn Coins on pre-order (2 Coins/LKR 100). Walk-in = 0.
+      if (orderType === "PRE_ORDER") {
+        await earnCoins(tx, userId, totalAmount, "PRE_ORDER_SPEND", orderType);
+      }
 
       // ═══ Create Order ═════════════════════════════════════════════
       const orderNumber = generateOrderNumber();
@@ -102,6 +128,8 @@ export async function POST(req: NextRequest) {
           type: orderType as "PRE_ORDER" | "WALK_IN",
           pickupSlotId: orderType === "PRE_ORDER" ? pickupSlotId : null,
           totalAmount,
+          coinsRedeemed: actualRedeemed,
+          discountAmount: actualRedeemed,
           qrCode: `CAF-SMART-${randomUUID()}`,
           items: {
             create: lineItems.map((li) => ({

@@ -16,9 +16,12 @@ interface Props {
   onUpdateQty: (itemId: string, delta: number) => void;
   onRemove: (itemId: string) => void;
   onCheckout: () => void;
+  coinsBalance: number;
+  coinsToRedeem: number;
+  onCoinsChange: (val: number) => void;
 }
 
-export default function CartPanel({ items, selectedSlot, orderMode, isOpen, onClose, onUpdateQty, onRemove, onCheckout }: Props) {
+export default function CartPanel({ items, selectedSlot, orderMode, isOpen, onClose, onUpdateQty, onRemove, onCheckout, coinsBalance, coinsToRedeem, onCoinsChange }: Props) {
   const total = items.reduce((sum, ci) => sum + (ci.menuItem.specialPrice ?? ci.menuItem.basePrice) * ci.quantity, 0);
 
   return (
@@ -99,9 +102,40 @@ export default function CartPanel({ items, selectedSlot, orderMode, isOpen, onCl
                     <p className="text-[10px] text-amber-400/50">No time slot &middot; {orderMode.coinsInfo}</p>
                   </div>
                 )}
+                {/* Coins Redemption (Story 4.3) */}
+                {coinsBalance >= 10 && (
+                  <div className="p-2.5 rounded-xl bg-yellow-500/5 border border-yellow-500/10 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-yellow-400">🪙 Redeem Coins ({coinsBalance} available)</span>
+                      <span className="text-yellow-400/70">Save LKR {coinsToRedeem}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.min(100, coinsBalance)}
+                      step={10}
+                      value={coinsToRedeem}
+                      onChange={(e) => onCoinsChange(Number(e.target.value))}
+                      className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-yellow-400 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-[var(--text-disabled)]">
+                      <span>0</span>
+                      <span>{Math.min(100, coinsBalance)} coins</span>
+                    </div>
+                  </div>
+                )}
+                {coinsToRedeem > 0 && (
+                  <div className="flex items-center justify-between text-xs text-green-400">
+                    <span>You save</span>
+                    <span>-Rs.{coinsToRedeem}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[var(--text-primary)]">Total</span>
-                  <span className="text-lg font-bold text-[var(--brand)]">Rs.{total}</span>
+                  <span className="text-lg font-bold text-[var(--brand)]">
+                    Rs.{total - coinsToRedeem}
+                    {coinsToRedeem > 0 && <span className="text-xs text-[var(--text-disabled)] line-through ml-1">Rs.{total}</span>}
+                  </span>
                 </div>
                 <button
                   onClick={onCheckout}

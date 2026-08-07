@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureTodaysSlots, toDisplayLabel } from "@/lib/slots";
 import { getOrderMode } from "@/lib/order-mode";
 import { getOrCreateWallet } from "@/lib/wallet";
+import { getCoinsBalance } from "@/lib/coins";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import MenuPageContent from "./MenuPageContent";
@@ -52,6 +53,9 @@ export default async function StudentHomePage() {
 
   // ═══ Story 4.1: Wallet balance ═════════════════════════════
   const { balance: walletBalance } = await getOrCreateWallet(session.user.id);
+
+  // ═══ Story 4.3: Coins balance ══════════════════════════════
+  const coinsBalance = await getCoinsBalance(prisma, session.user.id);
 
   // ─── Query today's menu ──────────────────────────────────────────
   const todayStart = startOfToday();
@@ -106,6 +110,7 @@ export default async function StudentHomePage() {
 
   return (
     <MenuPageContent
+      coinsBalance={coinsBalance}
       userName={user.name ?? session.user.name ?? "Student"}
       items={items}
       walletBalance={walletBalance}
