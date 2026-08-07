@@ -51,19 +51,46 @@ async function main() {
     SocketData
   >(httpServer, {
     cors: {
-      // In production, restrict to the deployed domain via NEXTAUTH_URL
-      origin: dev ? "*" : (process.env.NEXTAUTH_URL ?? "*"),
+      origin: dev
+        ? ["http://localhost:3000", "http://127.0.0.1:3000"]
+        : (process.env.NEXTAUTH_URL ? [process.env.NEXTAUTH_URL] : "*"),
       methods: ["GET", "POST"],
+      credentials: true,
     },
   });
 
   // 4. Register typed io singleton for use in API route handlers
   registerIO(io);
 
+  // ── Resolve auth secret at runtime in raw Node.js ───────────
+  // DO NOT read process.env inside socket-auth.ts — Next.js build-time
+  // env replacement can corrupt it. Read it here in server.ts (never compiled).
+  const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+  if (!AUTH_SECRET) {
+    console.warn("[server] WARNING: AUTH_SECRET is empty — socket auth will fail");
+  }
+
+  // ── Shared: import socket session extractor ──────────────────
+  const { extractSessionFromCookie } = await import("./src/lib/socket-auth");
+
   // 5. Define /admin namespace (Story 6.1: live dashboard, order queue)
   const adminNS = io.of("/admin");
+
+  // ── JWT auth middleware (Story 6.1) ──────────────────────────
+  adminNS.use(async (socket, next) => {
+    const req = socket.request as unknown as { headers: { cookie?: string } };
+    const session = await extractSessionFromCookie(req.headers.cookie ?? "", AUTH_SECRET);
+
+    if (!session) return next(new Error("Unauthorized"));
+    if (session.role !== "ADMIN") return next(new Error("Forbidden"));
+
+    socket.data.userId = session.userId;
+    socket.data.role = session.role;
+    next();
+  });
+
   adminNS.on("connection", (socket) => {
-    console.log(`[socket/admin] connected: ${socket.id}`);
+    console.log(`[socket/admin] connected: ${socket.id} (${socket.data.userId})`);
 
     socket.on("disconnect", (reason) => {
       console.log(`[socket/admin] disconnected: ${socket.id} — ${reason}`);
@@ -75,58 +102,25 @@ async function main() {
 
   // ── JWT auth middleware (Story 3.5) ──────────────────────────
   studentNS.use(async (socket, next) => {
-    try {
-      const req = socket.request as unknown as {
-        headers: { cookie?: string };
-      };
-      // Extract session token from cookie sent during WebSocket upgrade
-      const cookieHeader = req.headers.cookie ?? "";
-      const sessionToken = cookieHeader
-        .split("; ")
-        .find((c) => c.startsWith("authjs.session-token="))
-        ?.split("=")[1];
+    const req = socket.request as unknown as { headers: { cookie?: string } };
+    const session = await extractSessionFromCookie(req.headers.cookie ?? "", AUTH_SECRET);
 
-      // Most NextAuth cookies are httpOnly, so the client can't directly send tokens.
-      // For Socket.io v1: accept the connection if there's an active session cookie present.
-      // The namespace-level room join happens in the connection handler below.
-      if (!sessionToken) {
-        // Allow connection even without token — the user's room won't be joined
-        // but they can still receive global broadcast events
-        console.log(`[socket/student] no session cookie for ${socket.id} — global-only`);
-      }
-      next();
-    } catch {
-      next();
+    if (session) {
+      socket.data.userId = session.userId;
+      socket.data.role = session.role;
     }
+    // Always allow connection — per-user rooms joined in the handler below.
+    // Non-authenticated sockets get global broadcasts only.
+    next();
   });
 
   // ── Connection handler + per-user rooms ─────────────────────
   studentNS.on("connection", async (socket) => {
     console.log(`[socket/student] connected: ${socket.id}`);
 
-    // Try to get userId from the session cookie and join private room
-    try {
-      const req = socket.request as unknown as { headers: { cookie?: string } };
-      const cookieHeader = req.headers.cookie ?? "";
-      const sessionToken = cookieHeader
-        .split("; ")
-        .find((c) => c.startsWith("authjs.session-token="))
-        ?.split("=")[1];
-
-      if (sessionToken) {
-        // Decode the JWT to extract userId (JWT payload is base64url encoded)
-        const payload = sessionToken.split(".")[1];
-        const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
-        const userId = decoded.sub;
-        if (userId) {
-          socket.data.userId = userId;
-          socket.data.role = decoded.role;
-          socket.join(`user:${userId}`);
-          console.log(`[socket/student] ${socket.id} → room user:${userId}`);
-        }
-      }
-    } catch {
-      // Non-fatal — socket works without room join
+    if (socket.data.userId) {
+      socket.join(`user:${socket.data.userId}`);
+      console.log(`[socket/student] ${socket.id} → room user:${socket.data.userId}`);
     }
 
     socket.on("ping", () => {

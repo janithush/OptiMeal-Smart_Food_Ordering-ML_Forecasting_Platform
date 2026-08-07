@@ -8,8 +8,11 @@ import type {
 
 /**
  * Typed Socket.io Server instance.
- * Stored as a module-level singleton so it survives across
- * Next.js hot-module reloads within the same custom server process.
+ *
+ * Stored on globalThis so it survives across Next.js compilation contexts.
+ * In development, API route handlers can run in a separate worker from
+ * server.ts — module-level variables do NOT cross that boundary.
+ * globalThis does, which is why PrismaClient uses the same pattern.
  *
  * AD-6: Two namespaces (/admin, /student) are initialized in server.ts.
  * getIO() is used by API route handlers (e.g., POST /api/orders) to
@@ -23,32 +26,35 @@ type TypedIO = Server<
   SocketData
 >;
 
-// Module-level singleton — set once by server.ts at boot
-let _io: TypedIO | null = null;
-
-/**
- * Register the Socket.io Server instance.
- * Called exactly once from server.ts after the server starts listening.
- */
-export function registerIO(io: TypedIO): void {
-  if (_io) {
-    console.warn("[socket-server] IO already registered — skipping re-registration.");
-    return;
-  }
-  _io = io;
+// Extend globalThis to include our typed IO slot
+declare global {
+  var __cafesmart_io: TypedIO | undefined;
 }
 
 /**
- * Retrieve the Socket.io Server instance.
- * Throws if called before server.ts has initialized the server,
- * which prevents silent failures in API route handlers.
+ * Register the Socket.io Server instance on globalThis.
+ * Called exactly once from server.ts after the server starts listening.
+ */
+export function registerIO(io: TypedIO): void {
+  if (globalThis.__cafesmart_io) {
+    console.warn("[socket-server] IO already registered — skipping re-registration.");
+    return;
+  }
+  globalThis.__cafesmart_io = io;
+  console.log("[socket-server] IO registered on globalThis.");
+}
+
+/**
+ * Retrieve the Socket.io Server instance from globalThis.
+ * Returns null (instead of throwing) so callers can degrade gracefully
+ * if the server hasn't started yet (e.g. during build-time compilation).
  */
 export function getIO(): TypedIO {
-  if (!_io) {
+  if (!globalThis.__cafesmart_io) {
     throw new Error(
-      "[socket-server] Socket.io not initialized. " +
+      "[socket-server] Socket.io not initialized on globalThis. " +
       "Ensure server.ts has started before calling getIO()."
     );
   }
-  return _io;
+  return globalThis.__cafesmart_io;
 }

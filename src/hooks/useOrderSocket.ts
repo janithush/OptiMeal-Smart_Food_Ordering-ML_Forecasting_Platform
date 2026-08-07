@@ -18,6 +18,9 @@ export function useOrderSocket() {
 
     if (!globalSocket) {
       globalSocket = io("/student", {
+        path: "/socket.io",
+        withCredentials: true,
+        transports: ["websocket", "polling"],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 10000,

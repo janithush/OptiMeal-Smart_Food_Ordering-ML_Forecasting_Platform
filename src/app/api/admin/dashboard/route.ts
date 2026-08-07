@@ -1,74 +1,18 @@
-import { getIO } from "./socket-server";
-import { prisma } from "./prisma";
-import { toDisplayLabel } from "./slots";
-
-export interface DashboardPayload {
-  totalOrders: number;
-  totalRevenue: number;
-  preOrderCount: number;
-  walkInCount: number;
-  itemsSold: { name: string; units: number }[];
-  hourlySales: { hour: string; orders: number; revenue: number }[];
-  slotQueueDepths: { slotId: string; label: string; depth: number; max: number }[];
-  updatedAt: string;
-}
-
-export interface OrderStatusPayload {
-  orderId: string;
-  status: string;
-  orderNumber: string;
-  slotDisplay: string | null;
-  timestamp: string;
-}
+import { requireApiRole } from "@/lib/api-auth";
+import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { toDisplayLabel } from "@/lib/slots";
+import type { DashboardPayload } from "@/lib/order-events";
 
 /**
- * Emit an order status change to the specific student's Socket.io room.
- * Target: student/{user:userId} room on the /student namespace.
- * Also emits to the general /student namespace for dashboard-style views.
+ * GET /api/admin/dashboard — Initial dashboard data
+ * Uses requireApiRole("ADMIN") for auth (AD-4).
+ * All queries are anonymised aggregations — no student data (NFR-8).
  */
-export function emitOrderStatusUpdate(
-  orderId: string,
-  status: string,
-  orderNumber: string,
-  userId: string,
-  slotDisplay?: string | null
-) {
-  let io: ReturnType<typeof getIO>;
-  try {
-    io = getIO();
-  } catch {
-    console.warn("[events] emitOrderStatusUpdate skipped — IO not initialized");
-    return;
-  }
-  const payload: OrderStatusPayload = {
-    orderId,
-    status,
-    orderNumber,
-    slotDisplay: slotDisplay ?? null,
-    timestamp: new Date().toISOString(),
-  };
+export async function GET() {
+  const result = await requireApiRole("ADMIN");
+  if (result.error) return result.error;
 
-  // Target the specific student's private room
-  io.of("/student").to(`user:${userId}`).emit("orderStatusChanged", payload);
-  // Also emit globally on /student for any listening clients
-  io.of("/student").emit("orderStatusChanged", payload);
-
-  console.log(`[events] orderStatusChanged → user:${userId} | ${orderNumber} → ${status}`);
-}
-
-/**
- * Emit live dashboard KPIs to all /admin sockets.
- * Called after order creation, top-up webhook, and status changes.
- * All queries are anonymised aggregations — no student data exposed (NFR-8).
- */
-export async function emitDashboardRefresh() {
-  let io: ReturnType<typeof getIO>;
-  try {
-    io = getIO();
-  } catch {
-    console.warn("[events] emitDashboardRefresh skipped — IO not initialized");
-    return;
-  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -102,7 +46,7 @@ export async function emitDashboardRefresh() {
     payload.preOrderCount = Number(typeAgg.find((r) => r.type === "PRE_ORDER")?._count ?? 0);
     payload.walkInCount = Number(typeAgg.find((r) => r.type === "WALK_IN")?._count ?? 0);
 
-    // ── Items sold (anonymised: no student data) ──────────────
+    // ── Items sold ────────────────────────────────────────────
     const itemsSold = await prisma.$queryRawUnsafe<{ name: string; units: bigint }[]>(
       `SELECT mi."name", COALESCE(SUM(oi."quantity"), 0)::bigint as units
        FROM "MenuItem" mi
@@ -128,7 +72,7 @@ export async function emitDashboardRefresh() {
       today
     );
     payload.hourlySales = Array.from({ length: 15 }, (_, i) => {
-      const h = i + 8; // 08:00 – 22:00
+      const h = i + 8;
       const match = hourlySales.find((r) => r.hour === h);
       return {
         hour: `${String(h).padStart(2, "0")}:00`,
@@ -150,10 +94,9 @@ export async function emitDashboardRefresh() {
       max: s.maxCapacity,
     }));
   } catch (err) {
-    console.error("[events] emitDashboardRefresh query failed:", err);
-    // Still emit whatever we have (partial data beats no data)
+    console.error("[dashboard] query error:", err);
+    // Return partial data rather than failing entirely
   }
 
-  io.of("/admin").emit("dashboardUpdate", payload);
-  console.log(`[events] dashboardUpdate → ${payload.totalOrders} orders, Rs.${payload.totalRevenue}`);
+  return NextResponse.json(payload);
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { toDisplayLabel } from "@/lib/slots";
 import { earnCoins, redeemCoins } from "@/lib/coins";
+import { emitDashboardRefresh } from "@/lib/order-events";
 
 function generateOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -146,6 +147,9 @@ export async function POST(req: NextRequest) {
         },
       });
     });
+
+    // Story 6.1: Emit live dashboard update to admin sockets
+    emitDashboardRefresh().catch((err) => console.error("[orders] dashboard refresh failed:", err));
 
     return NextResponse.json(
       {
