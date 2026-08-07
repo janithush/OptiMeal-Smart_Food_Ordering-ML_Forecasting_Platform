@@ -64,6 +64,12 @@ enum CoinSource {
   PRE_ORDER_SPEND
 }
 
+enum DiscountType {
+  FLASH_DEAL
+  COINS
+  NONE
+}
+
 // ─── Core User ───────────────────────────────────────────────────
 
 model User {
@@ -179,6 +185,7 @@ model MenuItem {
   groupCartItems   GroupOrderCartItem[]
   cookPlanItems    CookPlanItem[]
   demandForecasts  DemandForecast[]
+  flashDeals       FlashDeal[]
 }
 
 model MenuItemIngredient {
@@ -229,12 +236,15 @@ model Order {
   pickupSlot     PickupSlot? @relation(fields: [pickupSlotId], references: [id])
   totalAmount    Decimal     @db.Decimal(10, 2)
   coinsRedeemed  Int         @default(0)
-  discountAmount Decimal     @db.Decimal(8, 2) @default(0)
-  qrCode         String      @unique
+  discountAmount Decimal       @db.Decimal(8, 2) @default(0)
+  discountType   DiscountType   @default(NONE)
+  flashDealId    String?
+  flashDeal      FlashDeal?     @relation(fields: [flashDealId], references: [id])
+  qrCode         String        @unique
   groupOrderId   String?
-  groupOrder     GroupOrder? @relation(fields: [groupOrderId], references: [id])
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  groupOrder     GroupOrder?   @relation(fields: [groupOrderId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   items          OrderItem[]
 }
@@ -316,6 +326,24 @@ model InventoryRecord {
   createdAt     DateTime   @default(now())
 
   @@unique([ingredientId, date])
+}
+
+// ─── Flash Deals ─────────────────────────────────────────────────
+
+model FlashDeal {
+  id               String    @id @default(uuid())
+  menuItemId       String
+  menuItem         MenuItem  @relation(fields: [menuItemId], references: [id])
+  discountPercent  Int                              // 1–100
+  cookPlanTarget   Int                              // snapshot of CookPlan target at deal creation
+  unitsSoldAtStart Int                              // snapshot of units sold when deal started
+  message          String?    @db.Text               // optional admin message, e.g. "Flash Sale!"
+  expiresAt        DateTime
+  cancelledAt      DateTime?
+  createdBy        String                           // admin user ID
+  createdAt        DateTime   @default(now())
+
+  orders           Order[]
 }
 
 // ─── ML & Forecasting ─────────────────────────────────────────────

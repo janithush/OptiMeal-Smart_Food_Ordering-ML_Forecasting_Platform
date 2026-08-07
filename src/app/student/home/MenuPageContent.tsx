@@ -19,6 +19,8 @@ import OrderStatusToast from "@/components/notifications/OrderStatusToast";
 import { useOrderSocket } from "@/hooks/useOrderSocket";
 import { showNotification } from "@/lib/notifications";
 import type { OrderStatusPayload } from "@/lib/order-events";
+import FlashDealBanner from "@/components/menu/FlashDealBanner";
+import { useFlashDeals } from "@/hooks/useFlashDeals";
 
 interface Props {
   userName: string;
@@ -59,6 +61,15 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
 
   // Socket.io — real-time order status
   const { lastUpdate } = useOrderSocket();
+
+  // Story 6.4: Flash Deals
+  const { deals, removeDeal } = useFlashDeals();
+  const handleFlashDealOrder = (menuItemId: string) => {
+    const item = items.find((mi) => mi.id === menuItemId);
+    if (item) setSelectedItem(item);
+  };
+
+  const [activeFlashDealId, setActiveFlashDealId] = useState<string | null>(null);
 
   useEffect(() => {
     if (lastUpdate && lastUpdate.timestamp !== prevUpdateRef.current) {
@@ -163,7 +174,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   // ─── Checkout ───────────────────────────────────────────────────
   const handleCheckout = async () => {
     setCheckoutError(null);
-    const body = {
+    const body: Record<string, unknown> = {
       items: cart.map((ci) => ({
         menuItemId: ci.menuItem.id,
         quantity: ci.quantity,
@@ -173,6 +184,11 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
       pickupSlotId: orderMode.isPreOrder ? selectedSlotId : null,
       orderType: orderMode.isPreOrder ? "PRE_ORDER" : "WALK_IN",
     };
+
+    // Story 6.4: Pass flash deal ID if active
+    if (activeFlashDealId) {
+      body.flashDealId = activeFlashDealId;
+    }
 
     try {
       const res = await fetch("/api/student/orders", {
@@ -305,6 +321,20 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
           </div>
         </div>
       )}
+
+      {/* Flash Deal Banners (Story 6.4) */}
+      <div className="max-w-lg mx-auto px-4">
+        <AnimatePresence>
+          {deals.map((deal) => (
+            <FlashDealBanner
+              key={deal.id}
+              deal={deal}
+              onOrderNow={handleFlashDealOrder}
+              onExpired={removeDeal}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
 
       {/* My Usual Section (Story 5.2) */}
       <MyUsualSection combos={myUsual} onReorder={handleReorder} />

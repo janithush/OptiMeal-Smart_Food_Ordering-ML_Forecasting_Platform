@@ -29,6 +29,44 @@ export interface ServerToClientEvents {
   }) => void;
   // Story 4.2: wallet balance updated after webhook
   walletUpdated: (payload: { newBalance: number }) => void;
+  // Story 6.4: Flash Deal published to all students
+  flashDealPublished: (payload: {
+    id: string;
+    menuItemId: string;
+    menuItemName: string;
+    dietaryType: string;
+    imageUrl: string | null;
+    basePrice: number;
+    discountPercent: number;
+    discountedPrice: number;
+    message: string | null;
+    expiresAt: string;
+  }) => void;
+  // Story 6.4: Flash Deal cancelled
+  flashDealCancelled: (payload: { flashDealId: string; menuItemId: string }) => void;
+  // Story 6.4: Smart discount alert on admin dashboard
+  smartDiscountAlert: (payload: {
+    menuItemId: string;
+    name: string;
+    cookPlanTarget: number;
+    unitsSold: number;
+    percentSold: number;
+    currentPrice: number;
+    checkedAt: string;
+  }) => void;
+  // Story 6.4: Flash Deal created (admin-only event)
+  flashDealCreated: (payload: {
+    id: string;
+    menuItemId: string;
+    menuItemName: string;
+    dietaryType: string;
+    imageUrl: string | null;
+    basePrice: number;
+    discountPercent: number;
+    discountedPrice: number;
+    message: string | null;
+    expiresAt: string;
+  }) => void;
 }
 
 // Events the CLIENT emits TO the SERVER

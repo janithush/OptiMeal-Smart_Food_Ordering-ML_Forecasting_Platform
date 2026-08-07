@@ -13,6 +13,29 @@ export interface DashboardPayload {
   updatedAt: string;
 }
 
+export interface FlashDealPayload {
+  id: string;
+  menuItemId: string;
+  menuItemName: string;
+  dietaryType: string;
+  imageUrl: string | null;
+  basePrice: number;
+  discountPercent: number;
+  discountedPrice: number;
+  message: string | null;
+  expiresAt: string;
+}
+
+export interface SmartDiscountAlertPayload {
+  menuItemId: string;
+  name: string;
+  cookPlanTarget: number;
+  unitsSold: number;
+  percentSold: number;
+  currentPrice: number;
+  checkedAt: string;
+}
+
 export interface OrderStatusPayload {
   orderId: string;
   status: string;
@@ -156,4 +179,55 @@ export async function emitDashboardRefresh() {
 
   io.of("/admin").emit("dashboardUpdate", payload);
   console.log(`[events] dashboardUpdate → ${payload.totalOrders} orders, Rs.${payload.totalRevenue}`);
+}
+
+/**
+ * Emit a Flash Deal to all connected /student sockets.
+ * Called after Admin creates a Flash Deal (Story 6.4).
+ */
+export function emitFlashDealPublished(payload: FlashDealPayload) {
+  let io: ReturnType<typeof getIO>;
+  try {
+    io = getIO();
+  } catch {
+    console.warn("[events] emitFlashDealPublished skipped — IO not initialized");
+    return;
+  }
+  io.of("/student").emit("flashDealPublished", payload);
+  io.of("/admin").emit("flashDealCreated", payload);
+  console.log(`[events] flashDealPublished → ${payload.menuItemName} @ ${payload.discountPercent}% off`);
+}
+
+/**
+ * Emit Flash Deal cancellation to all connected /student and /admin sockets.
+ * Called when Admin cancels an active Flash Deal (Story 6.4).
+ */
+export function emitFlashDealCancelled(flashDealId: string, menuItemId: string) {
+  let io: ReturnType<typeof getIO>;
+  try {
+    io = getIO();
+  } catch {
+    console.warn("[events] emitFlashDealCancelled skipped — IO not initialized");
+    return;
+  }
+  const payload = { flashDealId, menuItemId };
+  io.of("/student").emit("flashDealCancelled", payload);
+  io.of("/admin").emit("flashDealCancelled", payload);
+  console.log(`[events] flashDealCancelled → ${flashDealId}`);
+}
+
+/**
+ * Emit a Smart Discount alert to all connected /admin sockets.
+ * Called by the 12:30 PM scheduler or manual check (Story 6.4).
+ */
+export function emitSmartDiscountAlert(payload: SmartDiscountAlertPayload) {
+  let io: ReturnType<typeof getIO>;
+  try {
+    io = getIO();
+  } catch {
+    console.warn("[events] emitSmartDiscountAlert skipped — IO not initialized");
+    return;
+  }
+  io.of("/admin").emit("smartDiscountAlert", payload);
+  console.log(`[events] smartDiscountAlert → ${payload.name}: ${payload.percentSold.toFixed(1)}% of ${payload.cookPlanTarget}`);
 }

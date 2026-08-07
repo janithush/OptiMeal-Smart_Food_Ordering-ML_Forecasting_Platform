@@ -139,6 +139,78 @@ async function main() {
     console.log(`   Socket.io: /student namespace active`);
     console.log(`   Mode: ${dev ? "development" : "production"}\n`);
   });
+
+  // 8. Story 6.4: 12:30 PM Smart Discount Scheduler
+  // Checks all confirmed CookPlanItems against the 30% threshold and
+  // emits smartDiscountAlert to /admin namespace for items below threshold.
+  // Runs at 12:30 and 12:35 each day (FR-25a: within 5 minutes of 12:30 PM).
+  (function scheduleSmartDiscountCheck() {
+    let lastRunDate: string | null = null;
+
+    const checkAndEmit = async () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const today = now.toISOString().slice(0, 10);
+
+      // Run at 12:30 or 12:35, only once per day
+      if (!(hours === 12 && (minutes === 30 || minutes === 35))) return;
+      if (lastRunDate === today) return;
+      lastRunDate = today;
+
+      console.log("[scheduler] Running 12:30 PM smart discount check...");
+
+      try {
+        const { prisma } = await import("./src/lib/prisma");
+        const { emitSmartDiscountAlert } = await import("./src/lib/order-events");
+
+        const dayStart = new Date(today);
+        dayStart.setHours(0, 0, 0, 0);
+
+        const confirmedPlans = await prisma.cookPlanItem.findMany({
+          where: { date: dayStart, status: "CONFIRMED" },
+          include: { menuItem: { include: { dailySpecials: { where: { date: dayStart } } } } },
+        });
+
+        const unitsSoldToday = await prisma.orderItem.groupBy({
+          by: ["menuItemId"],
+          where: { order: { createdAt: { gte: dayStart } } },
+          _sum: { quantity: true },
+        });
+        const soldMap = new Map(
+          unitsSoldToday.map((r) => [r.menuItemId, r._sum.quantity ?? 0])
+        );
+
+        for (const plan of confirmedPlans) {
+          const unitsSold = soldMap.get(plan.menuItemId) ?? 0;
+          const percentSold = plan.finalQty > 0 ? (unitsSold / plan.finalQty) * 100 : 100;
+          if (percentSold < 30 && plan.finalQty > 0) {
+            const dailySpecial = plan.menuItem.dailySpecials[0];
+            const currentPrice = dailySpecial
+              ? Number(dailySpecial.specialPrice)
+              : Number(plan.menuItem.basePrice);
+
+            await emitSmartDiscountAlert({
+              menuItemId: plan.menuItemId,
+              name: plan.menuItem.name,
+              cookPlanTarget: plan.finalQty,
+              unitsSold,
+              percentSold: Math.round(percentSold * 10) / 10,
+              currentPrice,
+              checkedAt: now.toISOString(),
+            });
+          }
+        }
+        console.log(`[scheduler] Smart discount check complete — ${confirmedPlans.length} items evaluated`);
+      } catch (err) {
+        console.error("[scheduler] Smart discount check failed:", err);
+      }
+    };
+
+    // Check every 60 seconds — the date guard prevents duplicate runs
+    setInterval(checkAndEmit, 60_000);
+    console.log("   Smart Discount scheduler: checking at 12:30 & 12:35 daily");
+  })();
 }
 
 main().catch((err) => {
