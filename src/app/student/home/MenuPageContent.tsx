@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Clock, ShoppingBag, ClipboardList, Timer, Wallet } from "lucide-react";
+import { Clock, ShoppingBag, ClipboardList, Timer, Wallet, Coins } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import type { CartItem, OrderResult } from "@/types/cart";
@@ -23,6 +23,7 @@ interface Props {
   userDietary: DietaryType | null;
   orderMode: OrderMode;
   walletBalance: number;
+  coinsBalance: number;
 }
 
 type FilterValue = "All" | DietaryType;
@@ -33,7 +34,8 @@ const filterChips: { value: FilterValue; label: string }[] = [
   { value: "VEGETARIAN", label: "Vegetarian 🥬" },
   { value: "NON_VEGETARIAN", label: "Non-Veg 🍗" },
 ];
-export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance }: Props) {
+
+export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance, coinsBalance: initialCoins }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
@@ -45,6 +47,8 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   const [toastUpdate, setToastUpdate] = useState<OrderStatusPayload | null>(null);
   const prevUpdateRef = useRef<string | null>(null);
   const [displayBalance, setDisplayBalance] = useState(initialBalance);
+  const [displayCoins, setDisplayCoins] = useState(initialCoins);
+  const [coinsToRedeem, setCoinsToRedeem] = useState(0);
 
   // Socket.io — real-time order status
   const { lastUpdate } = useOrderSocket();
@@ -113,6 +117,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
         quantity: ci.quantity,
         unitPrice: ci.menuItem.specialPrice ?? ci.menuItem.basePrice,
       })),
+      coinsRedeemed: coinsToRedeem,
       pickupSlotId: orderMode.isPreOrder ? selectedSlotId : null,
       orderType: orderMode.isPreOrder ? "PRE_ORDER" : "WALK_IN",
     };
@@ -127,6 +132,8 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
       if (!res.ok) {
         setCheckoutError(data.error ?? "Order failed");
         return;
+      setDisplayCoins((prev) => prev - coinsToRedeem + (data.type === "PRE_ORDER" ? 0 : 0));
+      setCoinsToRedeem(0);
       }
       setConfirmedOrder(data);
       setDisplayBalance((prev) => prev - data.totalAmount);
@@ -170,6 +177,11 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
               <button onClick={() => router.push("/student/wallet")} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors" title="View Wallet">
                 <Wallet className="w-3.5 h-3.5 text-[var(--brand)]" />
                 <span className="text-xs font-bold text-[var(--brand)]">Rs.{displayBalance.toLocaleString()}</span>
+              </button>
+              {/* Coins Pill (Story 4.3) */}
+              <button onClick={() => router.push("/student/rewards")} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-500/10 hover:bg-yellow-500/15 transition-colors" title="View Rewards">
+                <Coins className="w-3.5 h-3.5 text-yellow-400" />
+                <span className="text-xs font-bold text-yellow-400">{displayCoins}</span>
               </button>
               <a
                 href="/student/profile"
@@ -293,6 +305,9 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
         onUpdateQty={updateQuantity}
         onRemove={removeFromCart}
         onCheckout={handleCheckout}
+        coinsBalance={displayCoins}
+        coinsToRedeem={coinsToRedeem}
+        onCoinsChange={setCoinsToRedeem}
       />
 
       {/* Order Confirmation Modal */}

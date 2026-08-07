@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPayHereWebhookSignature, extractUserIdFromOrderId } from "@/lib/payhere";
+import { earnCoins } from "@/lib/coins";
 
 /**
  * POST /api/wallet/webhook — PayHere server-to-server callback.
@@ -85,6 +86,10 @@ export async function POST(req: NextRequest) {
       });
 
       console.log(`[webhook] Credited LKR ${payhereAmount} to user ${userId} | balance: LKR ${newBalance}`);
+
+      // Story 4.3: Earn Coins on top-up (1 Coin/LKR 100)
+      const earned = await earnCoins(tx, userId, payhereAmount, "WALLET_TOP_UP");
+      if (earned > 0) console.log(`[webhook] Earned ${earned} coins for user ${userId}`);
     });
 
     return NextResponse.json({ status: "credited" });
