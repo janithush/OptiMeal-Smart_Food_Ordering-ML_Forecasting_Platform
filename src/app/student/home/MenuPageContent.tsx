@@ -11,6 +11,8 @@ import MenuItemCard from "@/components/menu/MenuItemCard";
 import MenuItemDetail from "@/components/menu/MenuItemDetail";
 import CartPanel from "@/components/cart/CartPanel";
 import OrderConfirmationModal from "@/components/cart/OrderConfirmationModal";
+import MyUsualSection from "@/components/menu/MyUsualSection";
+import type { MyUsualCombo } from "@/lib/my-usual";
 import OrderStatusToast from "@/components/notifications/OrderStatusToast";
 import { useOrderSocket } from "@/hooks/useOrderSocket";
 import { showNotification } from "@/lib/notifications";
@@ -24,6 +26,7 @@ interface Props {
   orderMode: OrderMode;
   walletBalance: number;
   coinsBalance: number;
+  myUsual: MyUsualCombo[];
 }
 
 type FilterValue = "All" | DietaryType;
@@ -35,7 +38,7 @@ const filterChips: { value: FilterValue; label: string }[] = [
   { value: "NON_VEGETARIAN", label: "Non-Veg 🍗" },
 ];
 
-export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance, coinsBalance: initialCoins }: Props) {
+export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance, coinsBalance: initialCoins, myUsual }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
@@ -45,6 +48,7 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
   const [confirmedOrder, setConfirmedOrder] = useState<OrderResult | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [toastUpdate, setToastUpdate] = useState<OrderStatusPayload | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const prevUpdateRef = useRef<string | null>(null);
   const [displayBalance, setDisplayBalance] = useState(initialBalance);
   const [displayCoins, setDisplayCoins] = useState(initialCoins);
@@ -81,6 +85,31 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
 
   const selectedSlot = slots.find((s) => s.id === selectedSlotId);
   const cartCount = cart.reduce((sum, ci) => sum + ci.quantity, 0);
+
+  // ─── My Usual reorder handler ─────────────────────────────────
+  const handleReorder = (combo: MyUsualCombo) => {
+    const newCartItems: CartItem[] = combo.items.map((ci) => {
+      const menuItem = items.find((mi) => mi.id === ci.menuItemId);
+      if (!menuItem) return null;
+      return { menuItem, quantity: ci.quantity };
+    }).filter((c): c is CartItem => c !== null);
+
+    setCart((prev) => {
+      const merged = [...prev];
+      for (const nc of newCartItems) {
+        const existing = merged.find((c) => c.menuItem.id === nc.menuItem.id);
+        if (existing) {
+          existing.quantity = Math.min(10, existing.quantity + nc.quantity);
+        } else {
+          merged.push(nc);
+        }
+      }
+      return merged;
+    });
+    setCartOpen(true);
+    setToastMessage(`Added ${combo.label} to cart`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // ─── Cart handlers ──────────────────────────────────────────────
   const addToCart = (item: MenuItemData, _slotId: string | null) => {
@@ -231,6 +260,15 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
         </div>
       </div>
 
+      {/* Reorder Toast */}
+      {toastMessage && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-lg mx-auto px-4 pt-3">
+          <div className="p-3 rounded-xl bg-[var(--brand)]/10 border border-[var(--brand)]/20 text-[var(--brand)] text-sm">
+            {toastMessage}
+          </div>
+        </motion.div>
+      )}
+
       {/* Checkout Error */}
       {checkoutError && (
         <div className="max-w-lg mx-auto px-4 pt-3">
@@ -240,6 +278,9 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
           </div>
         </div>
       )}
+
+      {/* My Usual Section (Story 5.2) */}
+      <MyUsualSection combos={myUsual} onReorder={handleReorder} />
 
       {/* Menu Grid */}
       <div className="max-w-lg mx-auto px-4 py-4">
