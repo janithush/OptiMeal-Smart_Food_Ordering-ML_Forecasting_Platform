@@ -12,7 +12,9 @@ import MenuItemDetail from "@/components/menu/MenuItemDetail";
 import CartPanel from "@/components/cart/CartPanel";
 import OrderConfirmationModal from "@/components/cart/OrderConfirmationModal";
 import MyUsualSection from "@/components/menu/MyUsualSection";
+import RecommendedSection from "@/components/menu/RecommendedSection";
 import type { MyUsualCombo } from "@/lib/my-usual";
+import type { RecommendedItem } from "@/lib/recommendations";
 import OrderStatusToast from "@/components/notifications/OrderStatusToast";
 import { useOrderSocket } from "@/hooks/useOrderSocket";
 import { showNotification } from "@/lib/notifications";
@@ -27,6 +29,7 @@ interface Props {
   walletBalance: number;
   coinsBalance: number;
   myUsual: MyUsualCombo[];
+  recommendations: RecommendedItem[];
 }
 
 type FilterValue = "All" | DietaryType;
@@ -38,7 +41,7 @@ const filterChips: { value: FilterValue; label: string }[] = [
   { value: "NON_VEGETARIAN", label: "Non-Veg 🍗" },
 ];
 
-export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance, coinsBalance: initialCoins, myUsual }: Props) {
+export default function MenuPageContent({ userName, items, slots, userDietary, orderMode, walletBalance: initialBalance, coinsBalance: initialCoins, myUsual, recommendations }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterValue>(userDietary ?? "All");
   const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
@@ -85,6 +88,26 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
 
   const selectedSlot = slots.find((s) => s.id === selectedSlotId);
   const cartCount = cart.reduce((sum, ci) => sum + ci.quantity, 0);
+
+  // ─── Recommendations add-to-cart handler ─────────────────────
+  const handleRecommendAdd = (rec: RecommendedItem) => {
+    const menuItem = items.find((mi) => mi.id === rec.menuItemId);
+    if (!menuItem) return;
+    setCart((prev) => {
+      const existing = prev.find((ci) => ci.menuItem.id === rec.menuItemId);
+      if (existing) {
+        if (existing.quantity >= 10) return prev;
+        return prev.map((ci) =>
+          ci.menuItem.id === rec.menuItemId
+            ? { ...ci, quantity: ci.quantity + 1 }
+            : ci
+        );
+      }
+      return [...prev, { menuItem, quantity: 1 }];
+    });
+    setToastMessage(`Added ${rec.name} to cart`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // ─── My Usual reorder handler ─────────────────────────────────
   const handleReorder = (combo: MyUsualCombo) => {
@@ -281,6 +304,9 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
 
       {/* My Usual Section (Story 5.2) */}
       <MyUsualSection combos={myUsual} onReorder={handleReorder} />
+
+      {/* Recommended for You (Story 5.3) */}
+      <RecommendedSection items={recommendations} onAddToCart={handleRecommendAdd} />
 
       {/* Menu Grid */}
       <div className="max-w-lg mx-auto px-4 py-4">
