@@ -17,7 +17,16 @@ export interface ServerToClientEvents {
     timestamp: string;
   }) => void;
   // Story 6.1: admin dashboard live KPI updates
-  dashboardUpdate: (payload: Record<string, unknown>) => void;
+  dashboardUpdate: (payload: {
+    totalOrders: number;
+    totalRevenue: number;
+    preOrderCount: number;
+    walkInCount: number;
+    itemsSold: { name: string; units: number }[];
+    hourlySales: { hour: string; orders: number; revenue: number }[];
+    slotQueueDepths: { slotId: string; label: string; depth: number; max: number }[];
+    updatedAt: string;
+  }) => void;
   // Story 4.2: wallet balance updated after webhook
   walletUpdated: (payload: { newBalance: number }) => void;
 }
