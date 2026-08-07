@@ -6,6 +6,7 @@ import { getOrderMode } from "@/lib/order-mode";
 import { getOrCreateWallet } from "@/lib/wallet";
 import { getCoinsBalance } from "@/lib/coins";
 import { getMyUsual, type MyUsualCombo } from "@/lib/my-usual";
+import { getRecommendations, type RecommendedItem } from "@/lib/recommendations";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import MenuPageContent from "./MenuPageContent";
@@ -60,6 +61,16 @@ export default async function StudentHomePage() {
 
   // ═══ Story 5.2: My Usual combos ═══════════════════════════
   const myUsual: MyUsualCombo[] = await getMyUsual(session.user.id);
+
+  // ═══ Story 5.3: Meal Recommendations ═════════════════════
+  let recommendations: RecommendedItem[] = [];
+  if (user.dietaryPreference) {
+    try {
+      recommendations = await getRecommendations(session.user.id, user.dietaryPreference);
+    } catch (err) {
+      console.warn("[recommendations] getRecommendations failed:", err);
+    }
+  }
 
   // ─── Query today's menu ──────────────────────────────────────────
   const todayStart = startOfToday();
@@ -116,6 +127,7 @@ export default async function StudentHomePage() {
     <MenuPageContent
       coinsBalance={coinsBalance}
       myUsual={myUsual}
+      recommendations={recommendations}
       userName={user.name ?? session.user.name ?? "Student"}
       items={items}
       walletBalance={walletBalance}
