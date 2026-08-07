@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
   const orderType = String(body.orderType ?? "");
   const pickupSlotId = body.pickupSlotId ?? null;
   const coinsRedeemed = Math.max(0, Math.min(100, Number(body.coinsRedeemed ?? 0) || 0));
+  const flashDealId = body.flashDealId ?? null;
   const lineItems: OrderItemInput[] = Array.isArray(body.items) ? body.items : [];
 
   // Validation
@@ -43,6 +44,38 @@ export async function POST(req: NextRequest) {
   }
 
   const totalAmount = lineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
+
+  // Story 6.4: Validate Flash Deal if provided
+  let flashDealDiscount = 0;
+  if (flashDealId) {
+    const deal = await prisma.flashDeal.findUnique({ where: { id: flashDealId } });
+    if (!deal) {
+      return NextResponse.json({ error: "Flash Deal not found" }, { status: 404 });
+    }
+    if (deal.cancelledAt || deal.expiresAt <= new Date()) {
+      return NextResponse.json({ error: "Flash Deal has expired" }, { status: 410 });
+    }
+    // Verify student hasn't already ordered this item today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const alreadyOrdered = await prisma.orderItem.findFirst({
+      where: {
+        menuItemId: deal.menuItemId,
+        order: { studentId: userId, createdAt: { gte: today } },
+      },
+    });
+    if (alreadyOrdered) {
+      return NextResponse.json({ error: "Already ordered this deal item today" }, { status: 409 });
+    }
+    // Calculate flash deal discount
+    const dealItem = lineItems.find((li) => li.menuItemId === deal.menuItemId);
+    if (dealItem) {
+      const discountedPrice =
+        Math.round(dealItem.unitPrice * (1 - deal.discountPercent / 100) * 100) / 100;
+      flashDealDiscount =
+        Math.round((dealItem.unitPrice - discountedPrice) * dealItem.quantity * 100) / 100;
+    }
+  }
 
   try {
     const order = await prisma.$transaction(async (tx) => {
@@ -130,7 +163,9 @@ export async function POST(req: NextRequest) {
           pickupSlotId: orderType === "PRE_ORDER" ? pickupSlotId : null,
           totalAmount,
           coinsRedeemed: actualRedeemed,
-          discountAmount: actualRedeemed,
+          discountAmount: actualRedeemed + flashDealDiscount,
+          discountType: flashDealId ? "FLASH_DEAL" : coinsRedeemed > 0 ? "COINS" : "NONE",
+          flashDealId: flashDealId ?? null,
           qrCode: `CAF-SMART-${randomUUID()}`,
           items: {
             create: lineItems.map((li) => ({

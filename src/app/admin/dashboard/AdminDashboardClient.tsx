@@ -9,6 +9,11 @@ import KpiCard from "@/components/admin/KpiCard";
 import HourlySalesChart from "@/components/admin/HourlySalesChart";
 import ItemSalesList from "@/components/admin/ItemSalesList";
 import SlotQueueBars from "@/components/admin/SlotQueueBars";
+import SmartDiscountAlert from "@/components/admin/SmartDiscountAlert";
+import ActiveFlashDeals from "@/components/admin/ActiveFlashDeals";
+import FlashDealForm from "@/components/admin/FlashDealForm";
+import type { SmartDiscountAlertPayload } from "@/lib/order-events";
+import { Zap, AlertTriangle } from "lucide-react";
 
 interface Props {
   userName: string;
@@ -20,6 +25,12 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
   const [data, setData] = useState<DashboardPayload>(initialData);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+
+  // Story 6.4: Smart Discount alerts + Flash Deal form
+  const [discountAlerts, setDiscountAlerts] = useState<SmartDiscountAlertPayload[]>([]);
+  const [dealFormOpen, setDealFormOpen] = useState(false);
+  const [dealTarget, setDealTarget] = useState<{ menuItemId: string; name: string; price: number } | null>(null);
+  const [dealsRefreshKey, setDealsRefreshKey] = useState(0);
 
   // WebSocket connection to /admin namespace
   useEffect(() => {
@@ -50,6 +61,23 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
       socket.on("connect_error", (err: Error) => {
         console.warn("[admin-dashboard] socket error:", err.message);
       });
+
+      // Story 6.4: Smart discount alerts
+      socket.on("smartDiscountAlert", (payload: SmartDiscountAlertPayload) => {
+        setDiscountAlerts((prev) => {
+          if (prev.some((a) => a.menuItemId === payload.menuItemId)) return prev;
+          return [...prev, payload];
+        });
+      });
+
+      // Story 6.4: Flash deal created/cancelled → refresh active deals
+      socket.on("flashDealCreated", () => {
+        setDealsRefreshKey((k) => k + 1);
+      });
+
+      socket.on("flashDealCancelled", () => {
+        setDealsRefreshKey((k) => k + 1);
+      });
     };
 
     connect();
@@ -66,6 +94,33 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
       if (res.ok) setData(await res.json());
     } catch { /* ignore */ }
   }, []);
+
+  // Story 6.4: Fetch smart discount alerts
+  const checkDiscounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/dashboard/smart-discounts");
+      if (res.ok) {
+        const json = await res.json();
+        setDiscountAlerts(json.alerts);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { checkDiscounts(); }, [checkDiscounts]);
+
+  // Story 6.4: Open Flash Deal form
+  const openDealForm = (menuItemId: string, name: string) => {
+    const alert = discountAlerts.find((a) => a.menuItemId === menuItemId);
+    setDealTarget({ menuItemId, name, price: alert?.currentPrice ?? 0 });
+    setDealFormOpen(true);
+  };
+
+  const closeDealForm = () => {
+    setDealFormOpen(false);
+    setDealTarget(null);
+    checkDiscounts();
+    setDealsRefreshKey((k) => k + 1);
+  };
 
   // Render
   const preOrderPct = data.totalOrders > 0 ? Math.round((data.preOrderCount / data.totalOrders) * 100) : 0;
@@ -157,7 +212,52 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
 
         {/* Slot Queue Row */}
         <SlotQueueBars slots={data.slotQueueDepths} />
+
+        {/* Story 6.4: Smart Discount Alerts */}
+        {discountAlerts.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                Smart Discount Alerts
+              </h2>
+              <button
+                onClick={checkDiscounts}
+                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+            {discountAlerts.map((alert) => (
+              <SmartDiscountAlert
+                key={alert.menuItemId}
+                alert={alert}
+                onCreateDeal={openDealForm}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Story 6.4: Active Flash Deals */}
+        <div className="space-y-3" key={dealsRefreshKey}>
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            Active Flash Deals
+          </h2>
+          <ActiveFlashDeals />
+        </div>
       </div>
+
+      {/* Story 6.4: Flash Deal Form Modal */}
+      {dealTarget && (
+        <FlashDealForm
+          isOpen={dealFormOpen}
+          onClose={closeDealForm}
+          menuItemId={dealTarget.menuItemId}
+          menuItemName={dealTarget.name}
+          currentPrice={dealTarget.price}
+        />
+      )}
     </div>
   );
 }
