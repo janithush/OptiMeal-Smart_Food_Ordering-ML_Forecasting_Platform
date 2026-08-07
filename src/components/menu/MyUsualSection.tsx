@@ -37,6 +37,9 @@ export default function MyUsualSection({ combos, onReorder }: Props) {
             <div className="flex items-center gap-2">
               <span className="text-xs text-[var(--text-muted)]">{combo.items.length} item{combo.items.length !== 1 ? "s" : ""}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[var(--text-disabled)]">{combo.orderCount}×</span>
+              {combo.items.some((it) => it.hasSpecial) && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold border border-white/10" style={{ background: "rgb(88,28,135)", color: "rgb(233,213,255)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>SPECIAL</span>
+              )}
             </div>
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-[rgba(255,255,255,0.05)]">
               <span className="text-xs font-bold text-[var(--brand)]">Rs.{combo.totalPrice}</span>

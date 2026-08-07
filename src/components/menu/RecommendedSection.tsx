@@ -50,6 +50,11 @@ export default function RecommendedSection({ items, onAddToCart }: Props) {
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[var(--text-disabled)]">
                   {badge.emoji} {badge.label}
                 </span>
+                {item.specialPrice && item.specialPrice < item.basePrice && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-bold border border-white/10" style={{ background: "rgb(88,28,135)", color: "rgb(233,213,255)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+                    SPECIAL
+                  </span>
+                )}
               </div>
 
               {/* Reason label */}
@@ -59,9 +64,16 @@ export default function RecommendedSection({ items, onAddToCart }: Props) {
 
               {/* Price + Add button */}
               <div className="flex items-center justify-between pt-2 border-t border-[rgba(255,255,255,0.05)]">
-                <span className="text-xs font-bold text-[var(--brand)]">
-                  Rs.{item.basePrice}
-                </span>
+                <div>
+                  {item.specialPrice && item.specialPrice < item.basePrice ? (
+                    <>
+                      <span className="text-[10px] text-[var(--text-disabled)] line-through mr-1">Rs.{item.basePrice}</span>
+                      <span className="text-xs font-bold text-purple-400">Rs.{item.specialPrice}</span>
+                    </>
+                  ) : (
+                    <span className="text-xs font-bold text-[var(--brand)]">Rs.{item.basePrice}</span>
+                  )}
+                </div>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={() => onAddToCart(item)}
