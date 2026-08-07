@@ -89,6 +89,7 @@ model User {
   coinBatches       CoinBatch[]
   groupOrders       GroupOrder[]       @relation("OrganizerOrders")
   groupParticipants GroupOrderParticipant[]
+  groupCartItems    GroupOrderCartItem[]
 }
 
 // ─── NextAuth (Auth.js) models ────────────────────────────────────
@@ -175,6 +176,7 @@ model MenuItem {
   ingredients      MenuItemIngredient[]
   dailySpecials    DailySpecial[]
   orderItems       OrderItem[]
+  groupCartItems   GroupOrderCartItem[]
   cookPlanItems    CookPlanItem[]
   demandForecasts  DemandForecast[]
 }
@@ -261,6 +263,7 @@ model GroupOrder {
   createdAt    DateTime         @default(now())
 
   participants GroupOrderParticipant[]
+  cartItems    GroupOrderCartItem[]
   orders       Order[]
 }
 
@@ -273,6 +276,20 @@ model GroupOrderParticipant {
   joinedAt     DateTime   @default(now())
 
   @@unique([groupOrderId, studentId])
+}
+
+model GroupOrderCartItem {
+  id            String     @id @default(uuid())
+  groupOrderId  String
+  groupOrder    GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   User       @relation(fields: [participantId], references: [id])
+  menuItemId    String
+  menuItem      MenuItem   @relation(fields: [menuItemId], references: [id])
+  quantity      Int
+  addedAt       DateTime   @default(now())
+
+  @@unique([groupOrderId, participantId, menuItemId])
 }
 
 // ─── Inventory ────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Clock, ShoppingBag, ClipboardList, Timer, Wallet, Coins, BarChart3 } from "lucide-react";
+import { Clock, ShoppingBag, ClipboardList, Timer, Wallet, Coins, BarChart3, Users } from "lucide-react";
 import type { MenuItemData, PickupSlotData, DietaryType } from "@/types/menu";
 import type { OrderMode } from "@/lib/order-mode";
 import type { CartItem, OrderResult } from "@/types/cart";
@@ -224,6 +224,10 @@ export default function MenuPageContent({ userName, items, slots, userDietary, o
                     {cartCount}
                   </span>
                 )}
+              </button>
+              {/* Group Order Button (Story 5.4) */}
+              <button onClick={() => router.push("/student/group-order")} className="relative w-9 h-9 rounded-full flex items-center justify-center bg-purple-500/10 hover:bg-purple-500/15 transition-colors" title="Group Order">
+                <Users className="w-5 h-5 text-purple-400" />
               </button>
               {/* Analytics Button */}
               <button onClick={() => router.push("/student/analytics")} className="relative w-9 h-9 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors" title="Analytics">
