@@ -1,13 +1,16 @@
+import { requireApiRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { emitOrderStatusUpdate, emitDashboardRefresh } from "@/lib/order-events";
 
 /**
- * PATCH /api/admin/orders/status — TEMPORARY test endpoint.
- * Updates order status and emits Socket.io event to the student.
- * Proper admin auth + UI comes in Epic 6.
+ * PATCH /api/admin/orders/status — Update order status
+ * Admin-only (Story 6.2). Emits Socket.io event to the student.
  */
 export async function PATCH(req: NextRequest) {
+  const auth = await requireApiRole("ADMIN");
+  if (auth.error) return auth.error;
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
@@ -43,7 +46,6 @@ export async function PATCH(req: NextRequest) {
     updated.pickupSlot?.slotTime ?? null
   );
 
-  // Story 6.1: Emit live dashboard update
   emitDashboardRefresh().catch((err) => console.error("[admin/status] dashboard refresh failed:", err));
 
   return NextResponse.json({ success: true, orderNumber: updated.orderNumber, status: updated.status });
