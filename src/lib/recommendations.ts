@@ -5,6 +5,7 @@ export interface RecommendedItem {
   menuItemId: string;
   name: string;
   basePrice: number;
+  specialPrice: number | null;
   dietaryType: DietaryPreference;
   imageUrl: string | null;
   reason: string;
@@ -36,6 +37,15 @@ export async function getRecommendations(
   const orderedItemIds = new Set(
     userOrders.flatMap((o) => o.items.map((oi) => oi.menuItemId))
   );
+
+  // ─── Fetch today's daily specials for special pricing ──────
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todaySpecials = await prisma.dailySpecial.findMany({
+    where: { date: today },
+    select: { menuItemId: true, specialPrice: true },
+  });
+  const specialMap = new Map(todaySpecials.map((s) => [s.menuItemId, Number(s.specialPrice)]));
 
   // ─── Step 2: Find similar students ───────────────────────────
   const similarStudents = await prisma.user.findMany({
@@ -95,10 +105,6 @@ export async function getRecommendations(
   >();
 
   for (const order of similarOrders) {
-    // Find the student who placed this order
-    const student = similarStudents.find((s) => s.id === order.items[0]?.menuItem?.id ? false : false);
-    // We'll track per-order counting instead
-
     const scoredInThisOrder = new Set<string>();
 
     for (const oi of order.items) {
@@ -142,6 +148,7 @@ export async function getRecommendations(
     menuItemId,
     name: data.name,
     basePrice: data.basePrice,
+    specialPrice: specialMap.get(menuItemId) ?? null,
     dietaryType: data.dietaryType,
     imageUrl: data.imageUrl,
     reason:
@@ -197,6 +204,7 @@ async function getPopularRecommendations(
     menuItemId: item.menuItemId,
     name: item.name,
     basePrice: item.basePrice,
+    specialPrice: null,
     dietaryType: item.dietaryType,
     imageUrl: item.imageUrl,
     reason: item.totalOrdered > 0 ? "Popular choice" : "Try something new",
@@ -225,6 +233,7 @@ async function getExploreRecommendations(
     menuItemId: item.id,
     name: item.name,
     basePrice: Number(item.basePrice),
+    specialPrice: null,
     dietaryType: item.dietaryType,
     imageUrl: item.imageUrl,
     reason: "You might like",

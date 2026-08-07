@@ -57,6 +57,11 @@ export default function MenuItemCard({ item, onTap }: Props) {
         {/* Badges overlay */}
         <div className="absolute top-2.5 left-2.5 flex gap-1.5">
           <DietaryBadge type={item.dietaryType} />
+          {hasSpecial && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-white/10" style={{ background: "rgb(88,28,135)", color: "rgb(233,213,255)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+              SPECIAL
+            </span>
+          )}
           {item.allergenMatch.length > 0 && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-400" title={item.allergenMatch.join(", ")}>
               ⚠️

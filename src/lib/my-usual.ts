@@ -8,6 +8,7 @@ export interface MyUsualCombo {
     name: string;
     quantity: number;
     price: number;
+    hasSpecial: boolean;
   }[];
   totalPrice: number;
   orderCount: number;
@@ -40,6 +41,15 @@ export async function getMyUsual(userId: string): Promise<MyUsualCombo[]> {
   });
 
   if (orders.length === 0) return [];
+
+  // ─── Fetch today's daily specials ──────────────────────────
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todaySpecials = await prisma.dailySpecial.findMany({
+    where: { date: today },
+    select: { menuItemId: true, specialPrice: true },
+  });
+  const specialMap = new Map(todaySpecials.map((s) => [s.menuItemId, Number(s.specialPrice)]));
 
   // Group by sorted item:quantity signature
   const comboMap = new Map<
@@ -79,6 +89,7 @@ export async function getMyUsual(userId: string): Promise<MyUsualCombo[]> {
         name: oi.menuItem.name,
         quantity: oi.quantity,
         price: Number(oi.menuItem.basePrice),
+        hasSpecial: specialMap.has(oi.menuItemId),
       }));
       const totalPrice = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
 

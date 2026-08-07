@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Users, ClipboardList, Activity } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Users, ClipboardList, Activity, Utensils } from "lucide-react";
 import type { DashboardPayload } from "@/lib/order-events";
 import KpiCard from "@/components/admin/KpiCard";
 import HourlySalesChart from "@/components/admin/HourlySalesChart";
@@ -95,6 +95,13 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
               >
                 <ClipboardList className="w-3.5 h-3.5" />
                 Orders
+              </button>
+              <button
+                onClick={() => router.push("/admin/menu")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors"
+              >
+                <Utensils className="w-3.5 h-3.5" />
+                Menu
               </button>
               <button
                 onClick={refreshData}
