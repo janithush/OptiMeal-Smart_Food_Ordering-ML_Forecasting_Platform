@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Clock, AlertTriangle } from "lucide-react";
 import type { MenuItemData, PickupSlotData } from "@/types/menu";
@@ -58,9 +59,16 @@ export default function MenuItemDetail({ item, slots, selectedSlotId, orderMode,
           </button>
 
           {/* Image */}
-          <div className="h-48 overflow-hidden">
+          <div className="relative h-48 overflow-hidden">
             {item.imageUrl ? (
-              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+              <Image
+                src={item.imageUrl}
+                alt={item.name}
+                fill
+                sizes="100vw"
+                className="object-cover"
+                priority
+              />
             ) : (
               <div
                 className="w-full h-full flex items-center justify-center"

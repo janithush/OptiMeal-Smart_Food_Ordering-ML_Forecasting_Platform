@@ -227,7 +227,7 @@ model PickupSlot {
 
 model Order {
   id             String      @id @default(uuid())
-  orderNumber    String      @unique                 // "#0142" format
+  orderNumber    String      @unique
   studentId      String
   student        User        @relation(fields: [studentId], references: [id])
   type           OrderType
@@ -247,6 +247,11 @@ model Order {
   updatedAt      DateTime      @updatedAt
 
   items          OrderItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([studentId])
+  @@index([type, createdAt])
 }
 
 model OrderItem {
@@ -256,8 +261,11 @@ model OrderItem {
   menuItemId  String
   menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
   quantity    Int
-  unitPrice   Decimal  @db.Decimal(8, 2)          // price captured at order time
+  unitPrice   Decimal  @db.Decimal(8, 2)
   subtotal    Decimal  @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([menuItemId])
 }
 
 // ─── Group Orders ─────────────────────────────────────────────────
@@ -322,13 +330,14 @@ model InventoryRecord {
   ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
   date           DateTime   @db.Date
   openingStock   Decimal    @db.Decimal(8, 3)
-  receivedStock  Decimal?   @db.Decimal(8, 3)       // mid-day deliveries (v1: manual entry)
-  consumedStock  Decimal?   @db.Decimal(8, 3)       // stock used for cooking (v1: manual entry; v2: auto from orders)
+  receivedStock  Decimal?   @db.Decimal(8, 3)
+  consumedStock  Decimal?   @db.Decimal(8, 3)
   closingStock   Decimal?   @db.Decimal(8, 3)
-  wastage        Decimal?   @db.Decimal(8, 3)        // derived: openingStock + receivedStock - consumedStock - closingStock
+  wastage        Decimal?   @db.Decimal(8, 3)
   createdAt      DateTime   @default(now())
 
   @@unique([ingredientId, date])
+  @@index([date])
 }
 
 // ─── Flash Deals ─────────────────────────────────────────────────
@@ -393,9 +402,11 @@ model ProcurementAlert {
   currentStock   Decimal    @db.Decimal(8, 3)
   forecastedNeed Decimal    @db.Decimal(8, 3)
   deficit        Decimal    @db.Decimal(8, 3)
-  tier           String     @default("CRITICAL")   // "WARNING" | "CRITICAL" — two-tier alert system
+  tier           String     @default("CRITICAL")
   isResolved     Boolean    @default(false)
   createdAt      DateTime   @default(now())
+
+  @@index([date, isResolved])
 }
 
 // ─── Academic Calendar ──────────────────────────────────────────
@@ -416,11 +427,14 @@ model TrainingLog {
   id           String   @id @default(uuid())
   itemName     String
   rowsUsed     Int
-  mae          Float                              // Mean Absolute Error
-  r2           Float                              // R² score
-  rolledBack   Boolean  @default(false)           // true if model was worse → rolled back
-  modelVersion String                             // "linear-regression-v1"
+  mae          Float
+  r2           Float
+  rolledBack   Boolean  @default(false)
+  modelVersion String
   trainedAt    DateTime @default(now())
+
+  @@index([itemName])
+  @@index([trainedAt])
 }
 
 // ─── Seed / Historical Data ──────────────────────────────────────

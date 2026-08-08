@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import type { MenuItemData } from "@/types/menu";
 import DietaryBadge from "./DietaryBadge";
@@ -45,7 +46,13 @@ export default function MenuItemCard({ item, onTap }: Props) {
       {/* Image / Placeholder */}
       <div className="relative h-32 overflow-hidden">
         {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+          <Image
+            src={item.imageUrl}
+            alt={item.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+            className="object-cover"
+          />
         ) : (
           <div
             className="w-full h-full flex items-center justify-center"
