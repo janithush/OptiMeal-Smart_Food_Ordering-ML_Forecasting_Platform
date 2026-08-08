@@ -241,6 +241,47 @@ async function main() {
     setInterval(runIfScheduled, 60_000);
     console.log("   Nightly forecast scheduler: checking at 18:00 daily");
   })();
+
+  // 10. Story 7.4: 09:05 Post-Cutoff Cook Plan Scheduler
+  // Counts confirmed pre-orders and updates CookPlanItem records.
+  (function schedulePostCutoffCookPlan() {
+    let lastRunDate: string | null = null;
+
+    const runIfScheduled = async () => {
+      const now = new Date();
+      if (now.getHours() !== 9 || now.getMinutes() !== 5) return;
+      const today = now.toISOString().slice(0, 10);
+      if (lastRunDate === today) return;
+      lastRunDate = today;
+
+      console.log("[scheduler] Running 09:05 post-cutoff Cook Plan update...");
+      try {
+        const { runPostCutoffUpdate } = await import("./src/lib/cook-plan");
+        const result = await runPostCutoffUpdate();
+        console.log(
+          `[scheduler] Post-cutoff update complete — ${result.itemsUpdated} items updated`
+        );
+
+        // Emit cookPlanReady event
+        const { getIO } = await import("./src/lib/socket-server");
+        try {
+          const io = getIO();
+          io.of("/admin").emit("cookPlanReady", {
+            date: today,
+            itemCount: result.itemsUpdated,
+            timestamp: new Date().toISOString(),
+          });
+        } catch {
+          // IO not initialized
+        }
+      } catch (err) {
+        console.error("[scheduler] Post-cutoff Cook Plan update failed:", err);
+      }
+    };
+
+    setInterval(runIfScheduled, 60_000);
+    console.log("   Post-cutoff Cook Plan scheduler: checking at 09:05 daily");
+  })();
 }
 
 main().catch((err) => {

@@ -310,6 +310,16 @@ export async function runNightlyForecast(): Promise<ForecastResult> {
     });
   }
 
+  // 4.5 Generate SUGGESTED Cook Plan from the forecast data
+  try {
+    const { generateCookPlan } = await import("@/lib/cook-plan");
+    const cookPlanResult = await generateCookPlan(tomorrow);
+    console.log(`[forecast] Cook Plan generated — ${cookPlanResult.itemsGenerated} items`);
+  } catch (err) {
+    console.error("[forecast] Cook Plan generation failed:", err);
+    // Non-fatal — forecast itself succeeded
+  }
+
   // 5. Check High Traffic
   const predictedTotal = forecasts.reduce((s, f) => s + f.predictedQty, 0);
   const rollingAvg = await get7DayRollingAverage();
