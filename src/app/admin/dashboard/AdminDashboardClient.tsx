@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, DollarSign, TrendingUp, Package, Users, ClipboardList, Activity, Utensils, Boxes, ClipboardCheck } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, Users, ClipboardList, Activity, Utensils, Boxes, ClipboardCheck, BarChart3, Settings } from "lucide-react";
 import type { DashboardPayload } from "@/lib/order-events";
 import KpiCard from "@/components/admin/KpiCard";
 import HourlySalesChart from "@/components/admin/HourlySalesChart";
@@ -245,6 +245,20 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
               >
                 <ClipboardCheck className="w-3.5 h-3.5" />
                 Cook Plan
+              </button>
+              <button
+                onClick={() => router.push("/admin/analytics")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Analytics
+              </button>
+              <button
+                onClick={() => router.push("/admin/settings")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Settings
               </button>
               <button
                 onClick={refreshData}

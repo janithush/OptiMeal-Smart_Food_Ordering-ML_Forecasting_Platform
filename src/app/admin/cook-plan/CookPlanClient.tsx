@@ -336,27 +336,25 @@ export default function CookPlanClient({ userName, initialData }: Props) {
       {/* ── Header ── */}
       <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-[var(--text-primary)]">
-              Cook Plan
-            </h1>
-            <p className="text-xs text-[var(--text-muted)]">
-              Welcome, {userName}
-              {data.allConfirmed && (
-                <span className="ml-2 text-emerald-400 text-[11px]">
-                  ● Confirmed
-                </span>
-              )}
-            </p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/admin/dashboard")} className="p-1">
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-[var(--text-primary)]">
+                Cook Plan
+              </h1>
+              <p className="text-xs text-[var(--text-muted)]">
+                Welcome, {userName}
+                {data.allConfirmed && (
+                  <span className="ml-2 text-emerald-400 text-[11px]">
+                    ● Confirmed
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push("/admin/dashboard")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Dashboard
-            </button>
             <button
               onClick={() => fetchData(data.date)}
               disabled={loading}
