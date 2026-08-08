@@ -12,8 +12,10 @@ import SlotQueueBars from "@/components/admin/SlotQueueBars";
 import SmartDiscountAlert from "@/components/admin/SmartDiscountAlert";
 import ActiveFlashDeals from "@/components/admin/ActiveFlashDeals";
 import FlashDealForm from "@/components/admin/FlashDealForm";
+import ProcurementAlertCard from "@/components/admin/ProcurementAlertCard";
+import type { ProcurementAlertPayload } from "@/components/admin/ProcurementAlertCard";
 import type { SmartDiscountAlertPayload } from "@/lib/order-events";
-import { Zap, AlertTriangle } from "lucide-react";
+import { Zap, AlertTriangle, ShoppingBag } from "lucide-react";
 
 interface Props {
   userName: string;
@@ -31,6 +33,10 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [dealTarget, setDealTarget] = useState<{ menuItemId: string; name: string; price: number } | null>(null);
   const [dealsRefreshKey, setDealsRefreshKey] = useState(0);
+
+  // Story 7.2: Procurement alerts state
+  const [procurementAlerts, setProcurementAlerts] = useState<ProcurementAlertPayload[]>([]);
+  const [poGenerating, setPoGenerating] = useState(false);
 
   // WebSocket connection to /admin namespace
   useEffect(() => {
@@ -106,7 +112,49 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { checkDiscounts(); }, [checkDiscounts]);
+  // Story 7.2: Fetch procurement alerts
+  const fetchProcurementAlerts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/procurement/alerts");
+      if (res.ok) {
+        const json = await res.json();
+        setProcurementAlerts(json.alerts);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Fetch both on mount (async wrapper satisfies react-hooks/exhaustive-deps)
+  useEffect(() => {
+    void (async () => {
+      await Promise.all([checkDiscounts(), fetchProcurementAlerts()]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Story 7.2: Generate Purchase Order PDF
+  const handleGeneratePO = async () => {
+    setPoGenerating(true);
+    try {
+      const res = await fetch("/api/admin/procurement/po");
+      if (!res.ok) throw new Error("Failed to generate PO");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Purchase-Order-${new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Resolve alerts after successful download
+      await fetch("/api/admin/procurement/resolve", { method: "POST" });
+      setProcurementAlerts([]);
+    } catch { /* ignore */ }
+    finally {
+      setPoGenerating(false);
+    }
+  };
 
   // Story 6.4: Open Flash Deal form
   const openDealForm = (menuItemId: string, name: string) => {
@@ -252,6 +300,44 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
             Active Flash Deals
           </h2>
           <ActiveFlashDeals />
+        </div>
+
+        {/* Story 7.2: Procurement Alerts — always visible */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-amber-400" />
+              Procurement Alerts
+              {procurementAlerts.length > 0 && (
+                <span className="text-[11px] font-normal text-[var(--text-muted)]">
+                  ({procurementAlerts.length} {procurementAlerts.length === 1 ? "item" : "items"} needs attention)
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={fetchProcurementAlerts}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+          {procurementAlerts.length === 0 ? (
+            <div
+              className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+              style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
+            >
+              <p className="text-xs text-[var(--text-muted)]">All ingredients are adequately stocked.</p>
+            </div>
+          ) : (
+            procurementAlerts.map((alert) => (
+              <ProcurementAlertCard
+                key={alert.id}
+                alert={alert}
+                onGeneratePO={handleGeneratePO}
+                poGenerating={poGenerating}
+              />
+            ))
+          )}
         </div>
       </div>
 

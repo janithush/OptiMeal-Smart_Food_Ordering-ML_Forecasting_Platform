@@ -88,16 +88,26 @@ export function validateStockDate(dateStr: string): string | null {
 /**
  * Validate stock amounts:
  * - openingStock must be >= 0
+ * - receivedStock if provided must be >= 0
+ * - consumedStock if provided must be >= 0
  * - closingStock if provided must be >= 0
  *
  * Returns null if valid, or an error message string.
  */
 export function validateStockAmounts(
   openingStock: number,
+  receivedStock: number | null,
+  consumedStock: number | null,
   closingStock: number | null
 ): string | null {
   if (openingStock < 0) {
     return "Opening stock cannot be negative.";
+  }
+  if (receivedStock !== null && receivedStock < 0) {
+    return "Received stock cannot be negative.";
+  }
+  if (consumedStock !== null && consumedStock < 0) {
+    return "Consumed stock cannot be negative.";
   }
   if (closingStock !== null && closingStock < 0) {
     return "Closing stock cannot be negative.";
@@ -114,6 +124,8 @@ export interface IngredientInventoryRow {
   name: string;
   unit: string;
   openingStock: number | null;
+  receivedStock: number | null;
+  consumedStock: number | null;
   closingStock: number | null;
   wastage: number | null;
   forecastedNeed: number | null;
@@ -124,6 +136,7 @@ export async function buildInventoryRows(
   date: Date
 ): Promise<IngredientInventoryRow[]> {
   const ingredients = await prisma.ingredient.findMany({
+    where: { isActive: true },
     orderBy: { name: "asc" },
   });
 
@@ -144,6 +157,31 @@ export async function buildInventoryRows(
       },
     });
 
+    // Auto-carryover: yesterday's closing → today's opening (today only, no cascading)
+    let openingStock: number | null = record ? Number(record.openingStock) : null;
+    if (!record) {
+      const todayDate = getTodayDate();
+      const isToday =
+        date.getUTCFullYear() === todayDate.getUTCFullYear() &&
+        date.getUTCMonth() === todayDate.getUTCMonth() &&
+        date.getUTCDate() === todayDate.getUTCDate();
+      if (isToday) {
+        const yesterday = new Date(date);
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+        const prevRecord = await prisma.inventoryRecord.findUnique({
+          where: {
+            ingredientId_date: {
+              ingredientId: ingredient.id,
+              date: yesterday,
+            },
+          },
+        });
+        if (prevRecord?.closingStock !== null && prevRecord?.closingStock !== undefined) {
+          openingStock = Number(prevRecord.closingStock);
+        }
+      }
+    }
+
     // Get forecasted need for tomorrow
     const { total: forecastedNeed, hasForecast } =
       await calculateForecastedNeed(ingredient.id, tomorrow);
@@ -152,7 +190,15 @@ export async function buildInventoryRows(
       id: ingredient.id,
       name: ingredient.name,
       unit: ingredient.unit,
-      openingStock: record ? Number(record.openingStock) : null,
+      openingStock,
+      receivedStock:
+        record && record.receivedStock !== null
+          ? Number(record.receivedStock)
+          : null,
+      consumedStock:
+        record && record.consumedStock !== null
+          ? Number(record.consumedStock)
+          : null,
       closingStock:
         record && record.closingStock !== null
           ? Number(record.closingStock)
