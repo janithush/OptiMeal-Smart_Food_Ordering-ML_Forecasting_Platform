@@ -282,6 +282,41 @@ async function main() {
     setInterval(runIfScheduled, 60_000);
     console.log("   Post-cutoff Cook Plan scheduler: checking at 09:05 daily");
   })();
+
+  // 11. Story 7.6: Sunday 02:00 AM Weekly ML Model Retraining Scheduler
+  (function scheduleWeeklyRetraining() {
+    let lastRunWeek: string | null = null;
+
+    const runIfScheduled = async function () {
+      const now = new Date();
+      // Colombo Sunday 02:00 = UTC Saturday 20:30 (UTC+5:30)
+      const colomboHour = ((now.getUTCHours() + 5) + (now.getUTCMinutes() >= 30 ? 1 : 0)) % 24;
+      let colomboDay = now.getUTCDay();
+      if (now.getUTCHours() >= 19 || (now.getUTCHours() === 18 && now.getUTCMinutes() >= 30)) {
+        colomboDay = (colomboDay + 1) % 7;
+      }
+      if (colomboDay !== 0 || colomboHour !== 2 || now.getMinutes() % 5 !== 0) return;
+
+      const weekKey = now.getUTCFullYear() + "-W" + String(Math.ceil(now.getUTCDate() / 7));
+      if (lastRunWeek === weekKey) return;
+      lastRunWeek = weekKey;
+
+      console.log("[scheduler] Running weekly model retraining (Sunday 02:00)...");
+      try {
+        const { runWeeklyRetraining } = await import("./src/lib/retrain-runner");
+        const result = await runWeeklyRetraining();
+        console.log(
+          "[scheduler] Retraining complete — " + result.trained + " trained, " +
+          result.rolledBack + " rolled back, " + result.skipped + " skipped"
+        );
+      } catch (err) {
+        console.error("[scheduler] Weekly retraining failed:", err);
+      }
+    };
+
+    setInterval(runIfScheduled, 60_000);
+    console.log("   Weekly retraining scheduler: checking Sundays at 02:00 Colombo");
+  })();
 }
 
 main().catch((err) => {

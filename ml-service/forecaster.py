@@ -132,7 +132,7 @@ def train_model(
     residuals = y_hist - model.predict(X_scaled)
     rmse = float(np.std(residuals))
 
-    artifact = {"model": model, "scaler": scaler, "rmse": rmse, "last_r2": r2}
+    artifact = {"model": model, "scaler": scaler, "rmse": rmse, "last_r2": r2, "mae": float(np.mean(np.abs(residuals)))}
     model_path = MODELS_DIR / f"{item_name}.pkl"
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(artifact, model_path)
@@ -241,3 +241,137 @@ def run_forecast(items: list[dict], semester_period: str) -> list[dict]:
         forecasts.append(result)
 
     return forecasts
+
+
+# ── Retraining (Story 7.6) ────────────────────────────────────────
+
+def retrain_model(item_name: str, historical_sales: list[float], semester_period: str = "REGULAR_LECTURES") -> dict:
+    """
+    Retrain a single item's LR model with all available data.
+    Performs atomic backup before overwrite and rollback if new MAE
+    is >20% worse than the old model's MAE.
+
+    Returns a dict with training metrics.
+    """
+    import shutil
+    from datetime import datetime
+    from sklearn.metrics import mean_absolute_error
+
+    model_path = MODELS_DIR / f"{item_name}.pkl"
+    backup_dir = MODELS_DIR / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load old model metrics for comparison
+    old_mae = None
+    old_r2 = None
+    if model_path.exists():
+        try:
+            old = joblib.load(model_path)
+            old_mae = old.get("mae", None)
+            old_r2 = old.get("last_r2", None)
+        except Exception:
+            logger.warning("Could not load old model for %s", item_name)
+
+    # Backup old model before retraining
+    if model_path.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"{item_name}_{timestamp}.pkl"
+        shutil.copy2(model_path, backup_path)
+        logger.info("Backed up model for '%s' → %s", item_name, backup_path)
+
+    # Build training data
+    if len(historical_sales) < 9:
+        return {
+            "menuItemId": item_name,
+            "itemName": item_name,
+            "rowsUsed": len(historical_sales),
+            "mae": 0.0,
+            "r2": 0.0,
+            "rolledBack": False,
+            "modelVersion": "linear-regression-v1",
+        }
+
+    # Build feature vector (default features for retraining)
+    features = np.array([[0, 0, 0, 0.0, 0.0, 0, 1, 0, 0, 0]], dtype=np.float64)
+    if semester_period:
+        one_hot = _one_hot_semester(semester_period)
+        features = np.array([[0, 0, 0, 0.0, 0.0, 0, *one_hot]], dtype=np.float64)
+
+    X_hist, y_hist = _build_training_data(historical_sales)
+    if X_hist is None:
+        return {
+            "menuItemId": item_name,
+            "itemName": item_name,
+            "rowsUsed": len(historical_sales),
+            "mae": 0.0,
+            "r2": 0.0,
+            "rolledBack": False,
+            "modelVersion": "linear-regression-v1",
+        }
+
+    n_samples = X_hist.shape[0]
+    domain_features = np.tile(features, (n_samples, 1))
+    X_combined = np.hstack([X_hist, domain_features])
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_combined)
+
+    model = LinearRegression()
+    model.fit(X_scaled, y_hist)
+
+    y_pred = model.predict(X_scaled)
+    r2 = float(model.score(X_scaled, y_hist))
+    mae = float(mean_absolute_error(y_hist, y_pred))
+    residuals = y_hist - y_pred
+    rmse = float(np.std(residuals))
+
+    # Check rollback: if old model exists and new MAE > old MAE * 1.20
+    rolled_back = False
+    rollback_reason = None
+
+    if old_mae is not None and mae > old_mae * 1.20:
+        rolled_back = True
+        rollback_reason = (
+            f"MAE increased from {old_mae:.1f} to {mae:.1f} "
+            f"({((mae / old_mae - 1) * 100):.0f}% degradation > 20% threshold)"
+        )
+        logger.warning("Rollback for '%s': %s", item_name, rollback_reason)
+
+        # Restore from backup
+        if backup_path and backup_path.exists():
+            shutil.copy2(backup_path, model_path)
+            logger.info("Restored backup for '%s' from %s", item_name, backup_path)
+    else:
+        # Save new model (already trained above)
+        artifact = {"model": model, "scaler": scaler, "rmse": rmse, "last_r2": r2, "mae": mae}
+        joblib.dump(artifact, model_path)
+        logger.info("Retrained model for '%s' — MAE=%.2f, R²=%.3f → %s", item_name, mae, r2, model_path)
+
+    return {
+        "menuItemId": item_name,
+        "itemName": item_name,
+        "rowsUsed": len(historical_sales),
+        "mae": round(mae, 2),
+        "r2": round(r2, 4),
+        "rolledBack": rolled_back,
+        "modelVersion": "linear-regression-v1",
+        "rollbackReason": rollback_reason,
+    }
+
+
+def run_retrain(items: list[dict], semester_period: str = "REGULAR_LECTURES") -> list[dict]:
+    """
+    Retrain models for all provided items. Returns per-item results.
+    """
+    results = []
+    for item in items:
+        historical = item.get("historical_sales", [])
+        result = retrain_model(
+            item.get("name", item.get("menuItemId", "unknown")),
+            historical,
+            semester_period,
+        )
+        # Override menuItemId with the one from the request
+        result["menuItemId"] = item.get("menuItemId", result["menuItemId"])
+        results.append(result)
+    return results

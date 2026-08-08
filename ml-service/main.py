@@ -9,7 +9,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from forecaster import run_forecast, MODELS_DIR
+from forecaster import run_forecast, run_retrain, MODELS_DIR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -73,3 +73,46 @@ async def forecast(request: ForecastRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
     return ForecastResponse(date=request.date, forecasts=[ForecastResult(**r) for r in results])
+
+
+# ── Story 7.6: Model Retraining ──────────────────────────────────
+
+class RetrainItem(BaseModel):
+    menuItemId: str
+    name: str = ""
+    historical_sales: list[float] = []
+
+
+class RetrainRequest(BaseModel):
+    semester_period: str = "REGULAR_LECTURES"
+    items: list[RetrainItem]
+
+
+class RetrainResult(BaseModel):
+    menuItemId: str
+    itemName: str
+    rowsUsed: int
+    mae: float
+    r2: float
+    rolledBack: bool
+    modelVersion: str
+    rollbackReason: str | None = None
+
+
+class RetrainResponse(BaseModel):
+    results: list[RetrainResult]
+
+
+@app.post("/train", response_model=RetrainResponse)
+async def train(request: RetrainRequest):
+    """Retrain per-item LR models with all accumulated data (weekly cron or manual)."""
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+    items_payload = [item.model_dump() for item in request.items]
+    try:
+        results = run_retrain(items_payload, request.semester_period)
+    except Exception as e:
+        logger.exception("Retrain failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return RetrainResponse(results=[RetrainResult(**r) for r in results])

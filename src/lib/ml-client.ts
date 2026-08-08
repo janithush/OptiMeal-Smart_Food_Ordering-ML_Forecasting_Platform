@@ -84,3 +84,62 @@ export async function pingMLService(): Promise<boolean> {
     return false;
   }
 }
+
+// ── Story 7.6: Model Retraining ──────────────────────────────────
+
+export interface MLRetrainItem {
+  menuItemId: string;
+  name: string;
+  historical_sales: number[];
+}
+
+export interface MLRetrainPayload {
+  semester_period: string;
+  items: MLRetrainItem[];
+}
+
+export interface MLRetrainResult {
+  menuItemId: string;
+  itemName: string;
+  rowsUsed: number;
+  mae: number;
+  r2: number;
+  rolledBack: boolean;
+  modelVersion: string;
+  rollbackReason: string | null;
+}
+
+export interface MLRetrainResponse {
+  results: MLRetrainResult[];
+}
+
+/**
+ * Call the FastAPI /train endpoint for weekly model retraining.
+ */
+export async function callMLRetrain(
+  payload: MLRetrainPayload
+): Promise<MLRetrainResult[]> {
+  const url = `${ML_SERVICE_URL}/train`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(function () { controller.abort(); }, 300_000); // 5 min timeout
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(function () { return "Unknown error"; });
+      throw new Error("ML service returned " + res.status + ": " + text);
+    }
+
+    const json: MLRetrainResponse = await res.json();
+    return json.results;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

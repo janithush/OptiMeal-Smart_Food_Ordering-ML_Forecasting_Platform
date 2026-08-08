@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play, ArrowLeft } from "lucide-react";
+import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play, ArrowLeft, Brain } from "lucide-react";
 
 interface CalendarEntry {
   id: string;
@@ -37,6 +37,7 @@ export default function AcademicCalendarClient({
   const [saving, setSaving] = useState(false);
   const [forecastRunning, setForecastRunning] = useState(false);
   const [forecastResult, setForecastResult] = useState<string | null>(null);
+  const [retrainRunning, setRetrainRunning] = useState(false);
 
   // Form state
   const [period, setPeriod] = useState("REGULAR_LECTURES");
@@ -143,6 +144,28 @@ export default function AcademicCalendarClient({
     }
   };
 
+  const handleRetrain = async () => {
+    setRetrainRunning(true);
+    setForecastResult(null);
+    try {
+      const res = await fetch("/api/admin/forecasts/retrain", { method: "POST" });
+      const json = await res.json();
+      if (res.ok) {
+        setForecastResult(
+          "Retraining complete — " + json.summary.trained + " trained, " +
+          json.summary.rolledBack + " rolled back, " +
+          json.summary.skipped + " skipped"
+        );
+      } else {
+        setForecastResult("Error: " + (json.error || "Unknown error"));
+      }
+    } catch {
+      setForecastResult("Network error — could not trigger retraining.");
+    } finally {
+      setRetrainRunning(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
       <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
@@ -173,6 +196,18 @@ export default function AcademicCalendarClient({
                 <Play className="w-3.5 h-3.5" />
               )}
               Run Forecast Now
+            </button>
+            <button
+              onClick={handleRetrain}
+              disabled={retrainRunning}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+            >
+              {retrainRunning ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Brain className="w-3.5 h-3.5" />
+              )}
+              Retrain Models
             </button>
           </div>
         </div>
