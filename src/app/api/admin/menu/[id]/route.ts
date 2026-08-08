@@ -46,7 +46,8 @@ export async function PATCH(
   const ingredients: { ingredientId: string; quantityPerPortion: number }[] | undefined =
     Array.isArray(body.ingredients) ? body.ingredients : undefined;
 
-  const item = await prisma.$transaction(async (tx) => {
+  const item = await prisma.$transaction(
+    async (tx) => {
     if (ingredients) {
       // Replace all ingredients
       await tx.menuItemIngredient.deleteMany({ where: { menuItemId: id } });
@@ -68,7 +69,9 @@ export async function PATCH(
         ingredients: { include: { ingredient: { select: { name: true, unit: true } } } },
       },
     });
-  });
+  },
+  { maxWait: 5000, timeout: 20000 }
+);
 
   return NextResponse.json({
     item: {

@@ -398,6 +398,18 @@ model ProcurementAlert {
   createdAt      DateTime   @default(now())
 }
 
+// ─── Academic Calendar ──────────────────────────────────────────
+
+model AcademicCalendar {
+  id             String   @id @default(uuid())
+  semesterPeriod String                           // "REGULAR_LECTURES" | "PRE_EXAM_WEEK" | "STUDY_LEAVE" | "EXAM_PERIOD"
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  label          String?                          // Optional human-readable label, e.g. "2026 Semester 1 Exams"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 // ─── Seed / Historical Data ──────────────────────────────────────
 
 model QueueTimeRecord {

@@ -211,6 +211,36 @@ async function main() {
     setInterval(checkAndEmit, 60_000);
     console.log("   Smart Discount scheduler: checking at 12:30 & 12:35 daily");
   })();
+
+  // 9. Story 7.3: 18:00 Nightly ML Forecast Scheduler
+  // Triggers runNightlyForecast() once per day at 18:00.
+  // Follows the same setInterval + date guard pattern as the Smart Discount scheduler.
+  (function scheduleNightlyForecast() {
+    let lastRunDate: string | null = null;
+
+    const runIfScheduled = async () => {
+      const now = new Date();
+      if (now.getHours() !== 18 || now.getMinutes() !== 0) return;
+      const today = now.toISOString().slice(0, 10);
+      if (lastRunDate === today) return;
+      lastRunDate = today;
+
+      console.log("[scheduler] Running 18:00 nightly forecast...");
+      try {
+        const { runNightlyForecast } = await import("./src/lib/forecast-runner");
+        const result = await runNightlyForecast();
+        console.log(
+          `[scheduler] Forecast complete — ${result.forecastsGenerated} items, ` +
+            `highTraffic=${result.highTraffic}, fallback=${result.fallbackUsed}`
+        );
+      } catch (err) {
+        console.error("[scheduler] Nightly forecast failed:", err);
+      }
+    };
+
+    setInterval(runIfScheduled, 60_000);
+    console.log("   Nightly forecast scheduler: checking at 18:00 daily");
+  })();
 }
 
 main().catch((err) => {
