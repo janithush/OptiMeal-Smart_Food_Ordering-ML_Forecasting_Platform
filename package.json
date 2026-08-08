@@ -7,6 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:api": "playwright test --project=api",
+    "test:all": "vitest run && playwright test",
     "ml:setup": "cd ml-service && python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt",
     "ml:dev": "cd ml-service && .venv\\Scripts\\uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
     "db:seed": "tsx prisma/seed.ts"
@@ -34,17 +42,25 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.3",
+    "@types/node": "^20.19.43",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.5",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "jsdom": "^29.1.1",
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.8",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
