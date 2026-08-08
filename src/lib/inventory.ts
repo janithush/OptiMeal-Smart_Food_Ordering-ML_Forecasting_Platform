@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { getTodayDate } from "@/lib/date-utils";
+
+// Re-export date utilities for backward compatibility (all server files import from here).
+// Client components should import directly from "@/lib/date-utils" instead.
+export { getTodayDate, getTomorrowDate, getColomboDateString, validateStockDate, validateStockAmounts } from "@/lib/date-utils";
 
 /**
  * Calculate the forecasted need for a single ingredient for tomorrow.
@@ -44,78 +49,6 @@ export async function calculateForecastedNeed(
 }
 
 /**
- * Calculate tomorrow's date (start of day) in UTC.
- */
-export function getTomorrowDate(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-}
-
-/**
- * Calculate today's date (start of day) in UTC.
- */
-export function getTodayDate(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
-/**
- * Validate stock entry date:
- * - Cannot be more than 1 day in the past
- * - Cannot be in the future
- *
- * Returns null if valid, or an error message string.
- */
-export function validateStockDate(dateStr: string): string | null {
-  const entryDate = new Date(dateStr + "T00:00:00Z");
-  const today = getTodayDate();
-
-  // Calculate one day ago (UTC)
-  const oneDayAgo = new Date(today);
-  oneDayAgo.setUTCDate(oneDayAgo.getUTCDate() - 1);
-
-  if (entryDate < oneDayAgo) {
-    return "Stock entries cannot be backdated more than 1 day.";
-  }
-
-  if (entryDate > today) {
-    return "Stock entries cannot be future-dated.";
-  }
-
-  return null;
-}
-
-/**
- * Validate stock amounts:
- * - openingStock must be >= 0
- * - receivedStock if provided must be >= 0
- * - consumedStock if provided must be >= 0
- * - closingStock if provided must be >= 0
- *
- * Returns null if valid, or an error message string.
- */
-export function validateStockAmounts(
-  openingStock: number,
-  receivedStock: number | null,
-  consumedStock: number | null,
-  closingStock: number | null
-): string | null {
-  if (openingStock < 0) {
-    return "Opening stock cannot be negative.";
-  }
-  if (receivedStock !== null && receivedStock < 0) {
-    return "Received stock cannot be negative.";
-  }
-  if (consumedStock !== null && consumedStock < 0) {
-    return "Consumed stock cannot be negative.";
-  }
-  if (closingStock !== null && closingStock < 0) {
-    return "Closing stock cannot be negative.";
-  }
-  return null;
-}
-
-/**
  * Build the inventory response for a single ingredient.
  * Includes today's stock record (if any) and forecasted need.
  */
@@ -141,8 +74,8 @@ export async function buildInventoryRows(
   });
 
   const tomorrow = new Date(date);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(0, 0, 0, 0);
 
   const rows: IngredientInventoryRow[] = [];
 

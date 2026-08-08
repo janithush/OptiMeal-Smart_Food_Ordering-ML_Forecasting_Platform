@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Package, ChevronLeft, ChevronRight, RefreshCw, Loader2, ArrowLeft, Plus, X, Check } from "lucide-react";
 import InventoryTableRow, { type IngredientRowData } from "@/components/admin/InventoryTableRow";
+import { getColomboDateString } from "@/lib/date-utils";
 
 interface InventoryData { date: string; ingredients: IngredientRowData[]; }
 
@@ -23,8 +24,12 @@ export default function InventoryClient({ userName, initialData }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [historyFrom, setHistoryFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0]; });
-  const [historyTo, setHistoryTo] = useState(() => new Date().toISOString().split("T")[0]);
+  const [historyFrom, setHistoryFrom] = useState(() => {
+    const colomboNow = new Date(Date.now() + (5 * 60 + 30) * 60 * 1000);
+    const d = new Date(Date.UTC(colomboNow.getUTCFullYear(), colomboNow.getUTCMonth(), colomboNow.getUTCDate() - 7));
+    return d.toISOString().split("T")[0];
+  });
+  const [historyTo, setHistoryTo] = useState(() => getColomboDateString());
   const [procurableIds, setProcurableIds] = useState<Map<string, string>>(new Map());
 
   // Ingredient management state
@@ -120,8 +125,13 @@ export default function InventoryClient({ userName, initialData }: Props) {
     setEditIngUnit(ing.unit);
   };
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getColomboDateString();
   const isToday = data.date === todayStr;
+  const tomorrowStr = (() => {
+    const d = new Date(data.date + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().split("T")[0];
+  })();
   const hasStocks = data.ingredients.some((i) => i.openingStock !== null || i.receivedStock !== null || i.consumedStock !== null || i.closingStock !== null);
 
   return (
@@ -205,7 +215,7 @@ export default function InventoryClient({ userName, initialData }: Props) {
               <div className="py-12 text-center"><Package className="w-8 h-8 text-[var(--text-disabled)] mx-auto mb-3" /><p className="text-sm text-[var(--text-muted)]">No inventory records for {data.date}.</p><p className="text-xs text-[var(--text-disabled)] mt-1">Enter opening stock to get started.</p></div>
             ) : null}
             {data.ingredients.length > 0 && (
-              <div className="overflow-x-auto"><table className="w-full"><thead><tr className="border-b border-[rgba(255,255,255,0.08)] bg-[oklch(0.10_0.01_260)]"><th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Ingredient</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Opening</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Received</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Consumed</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Closing</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Wastage</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Forecasted Need</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider w-[80px]">Action</th></tr></thead><tbody>
+              <div className="overflow-x-auto"><table className="w-full"><thead><tr className="border-b border-[rgba(255,255,255,0.08)] bg-[oklch(0.10_0.01_260)]"><th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Ingredient</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Opening</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Received</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Consumed</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Closing</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Wastage</th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Tomorrow's Need<span className="block text-[10px] font-normal text-[var(--text-disabled)] normal-case">({tomorrowStr})</span></th><th className="py-2.5 px-2 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider w-[80px]">Action</th></tr></thead><tbody>
               {data.ingredients.map((ing) => <InventoryTableRow key={ing.id} ingredient={ing} date={data.date} alertTier={procurableIds.get(ing.id) ?? null} onSaved={() => fetchData(data.date)} onEdit={(ing) => startEditing(ing)} onRetire={handleRetireIngredient} isEditing={editingIngId === ing.id} editName={editIngName} editUnit={editIngUnit} onEditNameChange={setEditIngName} onEditUnitChange={setEditIngUnit} onSaveEdit={handleEditIngredient} onCancelEdit={() => setEditingIngId(null)} />)}
               </tbody></table></div>
             )}

@@ -7,6 +7,7 @@ import {
   validateStockAmounts,
   getTodayDate,
 } from "@/lib/inventory";
+import { runProcurementCheck } from "@/lib/procurement";
 
 /**
  * GET /api/admin/inventory
@@ -151,6 +152,12 @@ export async function POST(req: NextRequest) {
       wastage,
     },
   });
+
+  // Fire-and-forget: re-evaluate procurement alerts after stock update.
+  // The frontend will re-fetch alerts on the next fetchData() call.
+  runProcurementCheck().catch((err) =>
+    console.error("[inventory] Procurement check failed after save:", err)
+  );
 
   return NextResponse.json({
     record: {

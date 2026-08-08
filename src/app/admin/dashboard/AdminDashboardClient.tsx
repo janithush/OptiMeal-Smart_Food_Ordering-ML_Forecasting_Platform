@@ -15,7 +15,7 @@ import FlashDealForm from "@/components/admin/FlashDealForm";
 import ProcurementAlertCard from "@/components/admin/ProcurementAlertCard";
 import type { ProcurementAlertPayload } from "@/components/admin/ProcurementAlertCard";
 import type { SmartDiscountAlertPayload } from "@/lib/order-events";
-import { Zap, AlertTriangle, ShoppingBag } from "lucide-react";
+import { Zap, AlertTriangle, ShoppingBag, Check } from "lucide-react";
 
 interface Props {
   userName: string;
@@ -37,6 +37,15 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
   // Story 7.2: Procurement alerts state
   const [procurementAlerts, setProcurementAlerts] = useState<ProcurementAlertPayload[]>([]);
   const [poGenerating, setPoGenerating] = useState(false);
+
+  // Story 7.3: Staff Planning state
+  const [staffPlanning, setStaffPlanning] = useState<{
+    date: string;
+    highTrafficFlag: boolean;
+    semesterPeriod: string;
+    predictedTotal: number;
+    rollingAvg: number;
+  } | null>(null);
 
   // WebSocket connection to /admin namespace
   useEffect(() => {
@@ -123,10 +132,27 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
     } catch { /* ignore */ }
   }, []);
 
+  // Story 7.3: Fetch staff planning / forecast data
+  const fetchStaffPlanning = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/forecasts/latest");
+      if (res.ok) {
+        const json = await res.json();
+        setStaffPlanning({
+          date: json.date,
+          highTrafficFlag: json.highTrafficFlag,
+          semesterPeriod: json.semesterPeriod,
+          predictedTotal: json.predictedTotal ?? 0,
+          rollingAvg: json.rollingAvg ?? 0,
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   // Fetch both on mount (async wrapper satisfies react-hooks/exhaustive-deps)
   useEffect(() => {
     void (async () => {
-      await Promise.all([checkDiscounts(), fetchProcurementAlerts()]);
+      await Promise.all([checkDiscounts(), fetchProcurementAlerts(), fetchStaffPlanning()]);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -337,6 +363,76 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
                 poGenerating={poGenerating}
               />
             ))
+          )}
+        </div>
+
+        {/* Story 7.3: Staff Planning */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              Staff Planning
+              {staffPlanning && (
+                <span className="text-[11px] font-normal text-[var(--text-muted)]">
+                  ({staffPlanning.date})
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={fetchStaffPlanning}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+          {!staffPlanning ? (
+            <div
+              className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+              style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
+            >
+              <p className="text-xs text-[var(--text-muted)]">No forecast data yet. Run a forecast to see staff planning.</p>
+            </div>
+          ) : staffPlanning.highTrafficFlag ? (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="rounded-2xl p-4 border border-red-500/30 relative overflow-hidden"
+              style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
+            >
+              <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-25 -translate-y-1/2 translate-x-1/2"
+                style={{ background: "oklch(0.55 0.20 15)" }} />
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: "oklch(0.55 0.20 15) / 0.15", color: "oklch(0.55 0.20 15)" }}>
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-red-400">⚠ High Traffic Expected</h4>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Predicted {staffPlanning.predictedTotal} orders vs. {Math.round(staffPlanning.rollingAvg)} daily average.
+                    Consider scheduling additional staff for {staffPlanning.date}.
+                  </p>
+                  <p className="text-[10px] text-[var(--text-disabled)] mt-1">
+                    Semester: {staffPlanning.semesterPeriod.replace(/_/g, " ")}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <div
+              className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+              style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
+            >
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400" />
+                <p className="text-xs text-[var(--text-muted)]">
+                  Normal traffic expected for {staffPlanning.date}. Predicted {staffPlanning.predictedTotal} orders (avg: {Math.round(staffPlanning.rollingAvg)}).
+                  <span className="ml-1 text-[10px] text-[var(--text-disabled)]">
+                    Semester: {staffPlanning.semesterPeriod.replace(/_/g, " ")}
+                  </span>
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>

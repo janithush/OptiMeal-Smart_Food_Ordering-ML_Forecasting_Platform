@@ -294,7 +294,7 @@ export default function InventoryTableRow({ ingredient, date, onSaved, hasAlert,
         ) : (
           <span
             className="text-xs text-[var(--text-disabled)] cursor-help"
-            title="Forecast not yet generated. Runs daily at 6 PM."
+            title="Tomorrow's forecast not yet generated. Runs daily at 6 PM."
           >
             —
           </span>
