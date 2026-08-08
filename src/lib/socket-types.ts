@@ -67,6 +67,27 @@ export interface ServerToClientEvents {
     message: string | null;
     expiresAt: string;
   }) => void;
+  // Story 7.3: Staff planning high-traffic flag
+  staffPlanningUpdate: (payload: {
+    date: string;
+    highTraffic: boolean;
+    predictedTotal: number;
+    rollingAvg: number;
+    timestamp: string;
+  }) => void;
+  // Story 7.4: Cook Plan ready after post-cutoff update
+  cookPlanReady: (payload: {
+    date: string;
+    itemCount: number;
+    timestamp: string;
+  }) => void;
+  // Story 7.4: Cook Plan confirmed by Admin
+  cookPlanConfirmed: (payload: {
+    date: string;
+    confirmedBy: string;
+    itemCount: number;
+    timestamp: string;
+  }) => void;
 }
 
 // Events the CLIENT emits TO the SERVER
