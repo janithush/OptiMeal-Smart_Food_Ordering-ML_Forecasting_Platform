@@ -1,0 +1,395 @@
+<testsuites id="" name="" tests="55" failures="0" skipped="0" errors="0" time="156.27659700000007">
+<testsuite name="e2e\admin-flow.spec.ts" timestamp="2026-08-08T23:51:12.748Z" hostname="chromium" tests="31" failures="0" skipped="0" time="328.86" errors="0">
+<testcase name="Admin Dashboard › dashboard page loads without crashing" classname="e2e\admin-flow.spec.ts" time="29.234">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Dashb-76230-page-loads-without-crashing-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Dashboard › dashboard shows KPI cards or loading skeleton" classname="e2e\admin-flow.spec.ts" time="31.024">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Dashb-6b7fd-I-cards-or-loading-skeleton-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Dashboard › dashboard has header with navigation buttons" classname="e2e\admin-flow.spec.ts" time="31.674">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Dashb-33b70-der-with-navigation-buttons-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Dashboard › dashboard has Procurement Alerts section" classname="e2e\admin-flow.spec.ts" time="31.474">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Dashb-383fd--Procurement-Alerts-section-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Dashboard › dashboard has Staff Planning section" classname="e2e\admin-flow.spec.ts" time="13.91">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Dashb-0efcc--has-Staff-Planning-section-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Inventory › inventory page loads with table headers" classname="e2e\admin-flow.spec.ts" time="10.132">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Inven-1a40b-ge-loads-with-table-headers-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Inventory › inventory has Tomorrow&apos;s Need column" classname="e2e\admin-flow.spec.ts" time="12.166">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Inven-2ca7e--has-Tomorrow-s-Need-column-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Inventory › inventory page has back button" classname="e2e\admin-flow.spec.ts" time="10.466">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Inven-9383d-entory-page-has-back-button-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Inventory › mobile viewport renders without horizontal overflow" classname="e2e\admin-flow.spec.ts" time="9.332">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Inven-b4fc8-without-horizontal-overflow-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Analytics › analytics page loads without crashing" classname="e2e\admin-flow.spec.ts" time="10.578">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Analy-5357f-page-loads-without-crashing-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Analytics › analytics page has Wastage Heatmap section" classname="e2e\admin-flow.spec.ts" time="10.083">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Analy-5136e-has-Wastage-Heatmap-section-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Analytics › analytics page has Demand Segments section" classname="e2e\admin-flow.spec.ts" time="7.43">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Analy-35516-has-Demand-Segments-section-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Analytics › analytics page has Model Health section" classname="e2e\admin-flow.spec.ts" time="7.852">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Analy-d0b91-ge-has-Model-Health-section-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Analytics › charts render without errors" classname="e2e\admin-flow.spec.ts" time="8.062">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Analytics-charts-render-without-errors-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Orders › orders page loads without crashing" classname="e2e\admin-flow.spec.ts" time="7.777">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Order-9b6c7-page-loads-without-crashing-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Orders › orders page shows slot tabs or empty state" classname="e2e\admin-flow.spec.ts" time="6.961">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Order-fc4d7-ws-slot-tabs-or-empty-state-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Cook Plan › cook plan page loads without crashing" classname="e2e\admin-flow.spec.ts" time="8.073">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Cook--c1584-page-loads-without-crashing-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Cook Plan › cook plan page shows table or empty state" classname="e2e\admin-flow.spec.ts" time="7.921">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Cook--ea2d2--shows-table-or-empty-state-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Settings › settings page loads without crashing" classname="e2e\admin-flow.spec.ts" time="8.064">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Setti-03e67-page-loads-without-crashing-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Settings › settings page has Run Forecast Now button" classname="e2e\admin-flow.spec.ts" time="6.629">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Setti-12c19-has-Run-Forecast-Now-button-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Settings › settings page has Retrain Models button" classname="e2e\admin-flow.spec.ts" time="6.221">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-Setti-3273f-e-has-Retrain-Models-button-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/inventory returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.327">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-e6ed9-nventory-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/procurement/alerts returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.182">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-a7497-t-alerts-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/analytics/wastage returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.1">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-6ad3b--wastage-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/analytics/demand-segments returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.114">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-45c28-segments-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/analytics/model-health returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.098">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-6e984-l-health-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/cook-plan returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.143">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-9b4c3-ook-plan-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › GET /api/admin/ingredients returns valid JSON" classname="e2e\admin-flow.spec.ts" time="0.118">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-a7955-redients-returns-valid-JSON-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › POST /api/admin/cook-plan/confirm rejects without auth" classname="e2e\admin-flow.spec.ts" time="0.128">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-7e620-onfirm-rejects-without-auth-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin API Endpoints › POST /api/admin/inventory rejects without valid body" classname="e2e\admin-flow.spec.ts" time="0.088">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Admin-API-E-4ec57--rejects-without-valid-body-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Cross-Navigation › navigating between pages does not cause errors" classname="e2e\admin-flow.spec.ts" time="52.499">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-admin-flow-Cross-Navig-7da28-pages-does-not-cause-errors-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="e2e\auth.spec.ts" timestamp="2026-08-08T23:51:12.748Z" hostname="chromium" tests="13" failures="0" skipped="0" time="133.293" errors="0">
+<testcase name="Authentication &amp; Access Control › Unauthenticated Access › redirects to login when accessing /admin/dashboard" classname="e2e\auth.spec.ts" time="6.954">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-89d83-n-accessing-admin-dashboard-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Unauthenticated Access › redirects to login when accessing /admin/inventory" classname="e2e\auth.spec.ts" time="35.547">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-2b07f-n-accessing-admin-inventory-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Unauthenticated Access › redirects to login when accessing /admin/orders" classname="e2e\auth.spec.ts" time="34.912">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-76f5c-when-accessing-admin-orders-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Unauthenticated Access › redirects to login when accessing /admin/cook-plan" classname="e2e\auth.spec.ts" time="33.668">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-81817-n-accessing-admin-cook-plan-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Unauthenticated Access › redirects to login when accessing /admin/analytics" classname="e2e\auth.spec.ts" time="5.898">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-b9a18-n-accessing-admin-analytics-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Unauthenticated Access › redirects to login when accessing /admin/settings" classname="e2e\auth.spec.ts" time="5.561">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-673f6-en-accessing-admin-settings-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Protected API Endpoints › GET /api/admin/inventory returns 401 or 403 without auth" classname="e2e\auth.spec.ts" time="0.722">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-81e5b-rns-401-or-403-without-auth-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Protected API Endpoints › GET /api/admin/procurement/alerts returns 401 or 403 without auth" classname="e2e\auth.spec.ts" time="1.453">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-6077d-rns-401-or-403-without-auth-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Protected API Endpoints › GET /api/admin/forecasts/latest returns 401 or 403 without auth" classname="e2e\auth.spec.ts" time="0.413">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-be99c-rns-401-or-403-without-auth-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Protected API Endpoints › GET /api/admin/analytics/wastage returns 401 or 403 without auth" classname="e2e\auth.spec.ts" time="0.096">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-b7f2d-rns-401-or-403-without-auth-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Protected API Endpoints › GET student routes do not expose admin data without auth" classname="e2e\auth.spec.ts" time="0.082">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-c49a7-ose-admin-data-without-auth-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Student Role Restrictions › student home page loads (may require auth)" classname="e2e\auth.spec.ts" time="3.035">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-18738-age-loads-may-require-auth--chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication &amp; Access Control › Login Page › login page renders with sign-in button" classname="e2e\auth.spec.ts" time="4.952">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-auth-Authentication-Ac-a3f99-renders-with-sign-in-button-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="e2e\inventory-page.spec.ts" timestamp="2026-08-08T23:51:12.748Z" hostname="chromium" tests="3" failures="0" skipped="0" time="14.505" errors="0">
+<testcase name="Admin Inventory Page › navigates to inventory from dashboard" classname="e2e\inventory-page.spec.ts" time="4.63">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-inventory-page-Admin-I-682f8-to-inventory-from-dashboard-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Inventory Page › inventory page shows table with headers" classname="e2e\inventory-page.spec.ts" time="3.492">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-inventory-page-Admin-I-2fa42-ge-shows-table-with-headers-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Inventory Page › mobile viewport renders without horizontal scroll issues" classname="e2e\inventory-page.spec.ts" time="6.383">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-inventory-page-Admin-I-3c2ee-ut-horizontal-scroll-issues-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="e2e\student-flow.spec.ts" timestamp="2026-08-08T23:51:12.748Z" hostname="chromium" tests="8" failures="0" skipped="0" time="38.647" errors="0">
+<testcase name="Student Flow › student home page loads without crashing" classname="e2e\student-flow.spec.ts" time="7.047">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-F-74886-page-loads-without-crashing-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student Flow › student menu page shows cards or skeleton loading" classname="e2e\student-flow.spec.ts" time="8.668">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-F-31304-s-cards-or-skeleton-loading-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student Flow › student can view flash deals if available" classname="e2e\student-flow.spec.ts" time="6.341">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-F-32575-ew-flash-deals-if-available-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student Flow › clicking a menu item opens detail view" classname="e2e\student-flow.spec.ts" time="5.512">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-F-4c756-menu-item-opens-detail-view-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student Flow › mobile viewport renders correctly" classname="e2e\student-flow.spec.ts" time="5.857">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-F-d987d--viewport-renders-correctly-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student Flow › page has a visible header with title" classname="e2e\student-flow.spec.ts" time="4.862">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-F-c6011-a-visible-header-with-title-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student API Endpoints › GET /api/student/flash-deals returns valid response" classname="e2e\student-flow.spec.ts" time="0.228">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-A-7a61f-eals-returns-valid-response-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Student API Endpoints › GET /api/student/menu returns valid response" classname="e2e\student-flow.spec.ts" time="0.132">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|e2e-student-flow-Student-A-d7bf9-menu-returns-valid-response-chromium\trace.zip]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>
