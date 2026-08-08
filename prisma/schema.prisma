@@ -410,6 +410,19 @@ model AcademicCalendar {
   updatedAt      DateTime @updatedAt
 }
 
+// ─── ML Training Log ─────────────────────────────────────────────
+
+model TrainingLog {
+  id           String   @id @default(uuid())
+  itemName     String
+  rowsUsed     Int
+  mae          Float                              // Mean Absolute Error
+  r2           Float                              // R² score
+  rolledBack   Boolean  @default(false)           // true if model was worse → rolled back
+  modelVersion String                             // "linear-regression-v1"
+  trainedAt    DateTime @default(now())
+}
+
 // ─── Seed / Historical Data ──────────────────────────────────────
 
 model QueueTimeRecord {

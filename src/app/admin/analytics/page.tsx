@@ -5,6 +5,7 @@ import { getTodayDate } from "@/lib/date-utils";
 import { ArrowLeft } from "lucide-react";
 import WastageHeatmap from "@/components/admin/WastageHeatmap";
 import DemandSegments from "@/components/admin/DemandSegments";
+import ModelHealth from "@/components/admin/ModelHealth";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function AdminAnalyticsPage() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <WastageHeatmap />
         <DemandSegments />
+        <ModelHealth />
       </div>
     </div>
   );
