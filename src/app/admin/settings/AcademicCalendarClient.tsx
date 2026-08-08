@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play } from "lucide-react";
+import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play, ArrowLeft } from "lucide-react";
 
 interface CalendarEntry {
   id: string;
@@ -30,6 +31,7 @@ export default function AcademicCalendarClient({
   initialEntries,
   currentSemesterPeriod,
 }: Props) {
+  const router = useRouter();
   const [entries, setEntries] = useState<CalendarEntry[]>(initialEntries);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -145,14 +147,19 @@ export default function AcademicCalendarClient({
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
       <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-[var(--text-primary)]">Settings</h1>
-            <p className="text-xs text-[var(--text-muted)]">
-              Welcome, {userName}
-              <span className="ml-2 text-[11px] text-emerald-400">
-                Current: {PERIOD_OPTIONS.find((o) => o.value === currentSemesterPeriod)?.label ?? "Regular Lectures"}
-              </span>
-            </p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/admin/dashboard")} className="p-1">
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-[var(--text-primary)]">Settings</h1>
+              <p className="text-xs text-[var(--text-muted)]">
+                Welcome, {userName}
+                <span className="ml-2 text-[11px] text-emerald-400">
+                  Current: {PERIOD_OPTIONS.find((o) => o.value === currentSemesterPeriod)?.label ?? "Regular Lectures"}
+                </span>
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
