@@ -2,6 +2,7 @@
 status: review
 story_id: 7-1-inventory-stock-entry-forecasting-view
 baseline_commit: 287242f472494924e09e3d4267c0d6f8d3aabc81
+last_updated: 2026-08-08 (post-review: corrected wastage formula, added receivedStock/consumedStock, carryover logic, ingredient CRUD, navigation, view sync)
 ---
 
 # Story 7.1: Inventory Stock Entry & Forecasting View
@@ -16,18 +17,19 @@ So that I know exactly what supplies are available and what is running low.
 
 **Given** I navigate to the Admin Inventory screen
 **When** I view the current stock list
-**Then** I see all ingredients with columns: Name, Unit, Opening Stock, Closing Stock, Today's Wastage, and Forecasted Need
-**And** for each ingredient I can input or edit the physical opening stock and closing stock amounts
+**Then** I see all ingredients with columns: Name, Unit, Opening Stock, Received Stock, Consumed Stock, Closing Stock, Today's Wastage, and Forecasted Need
+**And** for each ingredient I can input or edit the physical opening stock, received stock, consumed stock, and closing stock amounts
+**And** the "Wastage" column is auto-calculated using the formula: Opening + Received − Consumed − Closing
 **And** the "Forecasted Need" column shows the calculated required quantity based on tomorrow's ML Demand Forecast multiplied by the ingredient's recipe ratios (quantityPerPortion × predictedQty, summed across all menu items using that ingredient)
 
 **Given** no ML Demand Forecast exists yet for tomorrow (e.g., before the nightly 18:00 run)
 **When** I view the Inventory screen
 **Then** the "Forecasted Need" column displays "—" (dash) with a tooltip: "Forecast not yet generated. Runs daily at 6 PM."
 
-**Given** I enter or update the opening and closing stock for an ingredient today
+**Given** I enter or update the opening, received, consumed, and closing stock for an ingredient today
 **When** I save the entry
 **Then** the record is persisted to the `InventoryRecord` table keyed by (ingredientId, date)
-**And** the wastage field is automatically calculated as: `openingStock - closingStock` (sold/consumed portion is not yet tracked at this granularity — see Story 7.5 for full wastage = openingStock - closingStock - sold)
+**And** the wastage field is automatically calculated as: `openingStock + receivedStock − consumedStock − closingStock` (v1: all fields are manual; v2/Story 7.5: consumedStock auto-derived from order data)
 
 **Given** I try to backdate a stock entry by more than 1 day
 **When** I submit the form
@@ -35,8 +37,27 @@ So that I know exactly what supplies are available and what is running low.
 
 **Given** I am on the Inventory screen
 **When** I view the 7-day history
-**Then** I see a table of the last 7 days of stock entries per ingredient with opening stock, closing stock, and wastage values
+**Then** I see a table of the last 7 days of stock entries per ingredient with opening stock, received stock, consumed stock, closing stock, and wastage values
 **And** I can navigate between dates using a date picker or prev/next arrows
+
+**Given** it is a new day and no inventory record exists yet for today
+**When** I view the Today inventory screen
+**Then** the Opening Stock field auto-populates from yesterday's Closing Stock (auto-carryover for today only; no cascading carryover for past dates)
+**And** all other fields (Received, Consumed, Closing) default to empty
+
+**Given** I save a stock entry in the Today view while the 7-Day History view has been previously loaded
+**When** the save completes
+**Then** the history cache is invalidated so the next manual refresh/toggle fetches fresh data
+
+**Given** I am on the Inventory page
+**When** I look at the header
+**Then** I see a "← Dashboard" back-navigation button that returns to the Admin Dashboard
+
+**Given** I am an Admin managing inventory
+**When** I need to add, rename, or retire an ingredient
+**Then** I can use an ingredient management UI on the inventory page to create new ingredients, edit names/units, and soft-delete (set `isActive = false`) obsolete ingredients
+**And** only active ingredients (`isActive = true`) appear in the daily stock entry table
+**And** historical records for retired ingredients remain visible in the 7-day history
 
 ## Requirements
 
@@ -62,38 +83,43 @@ So that I know exactly what supplies are available and what is running low.
 
 ## Database Changes
 
-### Existing Models (No Schema Changes Required)
+### Existing Models (Schema Changes Required — Post-Review)
 
-All required models already exist in the current Prisma schema from Story 1.2. No migrations needed for this story.
+The `InventoryRecord` and `Ingredient` models require the following changes to support corrected inventory math, carryover logic, and ingredient lifecycle management:
 
 ```prisma
-// Already exists — no changes
+// UPDATED — receivedStock, consumedStock added; wastage formula corrected
+model InventoryRecord {
+  id             String     @id @default(uuid())
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+  date           DateTime   @db.Date
+  openingStock   Decimal    @db.Decimal(8, 3)
+  receivedStock  Decimal?   @db.Decimal(8, 3)       // NEW: mid-day deliveries (v1: manual)
+  consumedStock  Decimal?   @db.Decimal(8, 3)       // NEW: stock used for cooking (v1: manual)
+  closingStock   Decimal?   @db.Decimal(8, 3)
+  wastage        Decimal?   @db.Decimal(8, 3)        // UPDATED formula: opening + received - consumed - closing
+  createdAt      DateTime   @default(now())
+
+  @@unique([ingredientId, date])
+}
+
+// UPDATED — isActive added for soft-delete
 model Ingredient {
   id          String   @id @default(uuid())
   name        String   @unique
   unit        String                                // "kg" | "liters"
+  isActive    Boolean  @default(true)               // NEW: soft-delete flag
   createdAt   DateTime @default(now())
 
   menuItems        MenuItemIngredient[]
   inventoryRecords InventoryRecord[]
   procurementAlerts ProcurementAlert[]
 }
+```
 
-// Already exists — no changes
-model InventoryRecord {
-  id            String     @id @default(uuid())
-  ingredientId  String
-  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
-  date          DateTime   @db.Date
-  openingStock  Decimal    @db.Decimal(8, 3)
-  closingStock  Decimal?   @db.Decimal(8, 3)
-  wastage       Decimal?   @db.Decimal(8, 3)        // derived: openingStock - closingStock
-  createdAt     DateTime   @default(now())
-
-  @@unique([ingredientId, date])
-}
-
-// Already exists — used for Forecasted Need calculation
+```prisma
+// Unchanged — used for Forecasted Need calculation
 model DemandForecast {
   id              String   @id @default(uuid())
   date            DateTime @db.Date
@@ -136,9 +162,20 @@ FOR each ingredient:
 
 If no DemandForecast records exist for tomorrow, the column displays "—".
 
-### Wastage Calculation (Simplified for v1)
+### Wastage Calculation (Corrected v1 Formula — Post-Review)
 
-For this story, wastage is computed as: `openingStock - closingStock`. The full formula (`openingStock - closingStock - sold`) requires OrderItem-to-Ingredient mapping which is built in Story 7.5 (Wastage Heatmap). Add a comment in the code marking this as a placeholder for Story 7.5 enhancement.
+For this story, wastage is computed as:
+
+$$\text{Wastage} = \text{OpeningStock} + \text{ReceivedStock} - \text{ConsumedStock} - \text{ClosingStock}$$
+
+Where:
+- **Opening Stock** = Auto-carried from yesterday's Closing (today only), or manually entered
+- **Received Stock** = Mid-day deliveries (manually entered in v1)
+- **Consumed Stock** = Stock used for cooking (manually entered in v1; auto-derived from order data in Story 7.5)
+- **Closing Stock** = End-of-day physical count (manually entered)
+- **Wastage** = Residual (spoilage, spillage, theft, miscounts)
+
+The full formula including auto-derived consumed stock from order data is deferred to Story 7.5 (Wastage Heatmap).
 
 ## API Contracts
 
@@ -188,6 +225,8 @@ Create or update an inventory record for a specific ingredient on a specific dat
   "ingredientId": "uuid",
   "date": "2026-08-08",
   "openingStock": 25.000,
+  "receivedStock": 5.000,
+  "consumedStock": 7.500,
   "closingStock": 22.500
 }
 ```
@@ -200,8 +239,10 @@ Create or update an inventory record for a specific ingredient on a specific dat
     "ingredientId": "uuid",
     "date": "2026-08-08",
     "openingStock": 25.000,
+    "receivedStock": 5.000,
+    "consumedStock": 7.500,
     "closingStock": 22.500,
-    "wastage": 2.500,
+    "wastage": 0.000,
     "createdAt": "2026-08-08T14:00:00Z"
   }
 }
@@ -238,9 +279,9 @@ Returns 7-day history of inventory records for all ingredients.
 ## Tasks / Subtasks
 
 - [x] Task 1: Create Inventory API routes (AC: all AC items)
-  - [x] `GET /api/admin/inventory/route.ts` — list today's inventory with forecasted need per ingredient
-  - [x] `POST /api/admin/inventory/route.ts` — upsert stock entry (opening + closing) for ingredient+date
-  - [x] `GET /api/admin/inventory/history/route.ts` — 7-day inventory history
+  - [x] `GET /api/admin/inventory/route.ts` — list today's inventory with forecasted need per ingredient; includes auto-carryover of yesterday's closing → today's opening (today only)
+  - [x] `POST /api/admin/inventory/route.ts` — upsert stock entry (opening + received + consumed + closing) for ingredient+date; wastage = opening + received − consumed − closing
+  - [x] `GET /api/admin/inventory/history/route.ts` — 7-day inventory history (includes receivedStock, consumedStock columns)
   - [x] All routes use `requireApiRole("ADMIN")`
   - [x] Forecasted need calculation: aggregate `DemandForecast.predictedQty × MenuItemIngredient.quantityPerPortion` per ingredient
   - [x] Backdate validation: reject dates older than 1 day from today
@@ -248,16 +289,21 @@ Returns 7-day history of inventory records for all ingredients.
 
 - [x] Task 2: Create Admin Inventory page (AC: inventory list with all columns)
   - [x] `src/app/admin/inventory/page.tsx` — Server Component: `requireAuth` guard, ADMIN role check, initial data fetch
-  - [x] `src/app/admin/inventory/InventoryClient.tsx` — Client Component: ingredient table with inline stock editing
-  - [x] Display columns: Ingredient Name (with Unit), Opening Stock (editable input), Closing Stock (editable input), Wastage (computed), Forecasted Need
+  - [x] `src/app/admin/inventory/InventoryClient.tsx` — Client Component: ingredient table with inline stock editing (Opening, Received, Consumed, Closing)
+  - [x] Display columns: Ingredient Name (with Unit), Opening Stock (editable), Received Stock (editable), Consumed Stock (editable), Closing Stock (editable), Wastage (computed), Forecasted Need
+  - [x] "← Dashboard" back-navigation button in header
+  - [x] Inline ingredient management: Add Ingredient button, inline edit/rename, soft-delete (isActive toggle)
   - [x] Empty state: "No inventory records for today. Enter opening stock to get started."
+  - [x] Only show ingredients where `isActive = true` in daily entry; retired ingredients visible in history
 
 - [x] Task 3: Create InventoryTableRow component (AC: inline edit + save)
   - [x] `src/components/admin/InventoryTableRow.tsx` — Client Component: single ingredient row
-  - [x] Inline editable fields for openingStock and closingStock
-  - [x] Save button triggers POST /api/admin/inventory with debounce or explicit save
-  - [x] Wastage auto-calculated on blur/change: `openingStock - closingStock`
+  - [x] Inline editable fields for openingStock, receivedStock, consumedStock, and closingStock
+  - [x] Save button triggers POST /api/admin/inventory
+  - [x] Wastage auto-calculated: `openingStock + receivedStock − consumedStock − closingStock`
   - [x] Forecasted Need cell: shows value if forecast exists, "—" with tooltip if not
+  - [x] Red left border (`border-l-2 border-l-red-500/50`) for rows with active procurement alert (CRITICAL tier)
+  - [x] Amber left border (`border-l-2 border-l-amber-500/50`) for rows with WARNING tier alert
   - [x] Visual feedback: green flash on save success, red border on validation error
 
 - [x] Task 4: Create 7-Day History view (AC: history table)
@@ -285,13 +331,16 @@ Returns 7-day history of inventory records for all ingredients.
 
 | File | Action |
 |------|--------|
-| `src/app/api/admin/inventory/route.ts` | NEW — GET today's inventory + forecasted need, POST upsert stock entry |
-| `src/app/api/admin/inventory/history/route.ts` | NEW — GET 7-day inventory history |
-| `src/app/admin/inventory/page.tsx` | NEW — RSC page with auth guard + initial data fetch |
-| `src/app/admin/inventory/InventoryClient.tsx` | NEW — Client Component: today's stock table with inline editing |
-| `src/components/admin/InventoryTableRow.tsx` | NEW — Single ingredient row with editable inputs |
-| `src/app/admin/dashboard/AdminDashboardClient.tsx` | MODIFIED — Add "Inventory" navigation button |
-| `src/lib/inventory.ts` | NEW — Server-side forecasted need calculation helper |
+| `prisma/schema.prisma` | MODIFIED — Added receivedStock, consumedStock to InventoryRecord; isActive to Ingredient |
+| `src/app/api/admin/inventory/route.ts` | MODIFIED — GET: auto-carryover logic; POST: receivedStock, consumedStock, corrected wastage formula |
+| `src/app/api/admin/inventory/history/route.ts` | MODIFIED — Include receivedStock, consumedStock in response |
+| `src/app/api/admin/ingredients/route.ts` | MODIFIED — Filter by isActive; add isActive toggle endpoint |
+| `src/app/api/admin/ingredients/[id]/route.ts` | NEW — PATCH (rename/unit), DELETE (soft-delete: set isActive=false) |
+| `src/app/admin/inventory/page.tsx` | MODIFIED — Pass ingredient data with isActive filter |
+| `src/app/admin/inventory/InventoryClient.tsx` | MODIFIED — Received/Consumed columns; "← Dashboard" button; ingredient CRUD; auto-carryover display; history invalidation on save |
+| `src/components/admin/InventoryTableRow.tsx` | MODIFIED — Received/Consumed inputs; updated wastage computation; two-tier alert border (amber/red) |
+| `src/app/admin/dashboard/AdminDashboardClient.tsx` | MODIFIED — Already has Inventory nav button (unchanged) |
+| `src/lib/inventory.ts` | MODIFIED — buildInventoryRows: auto-carryover logic; updated IngredientInventoryRow type with receivedStock/consumedStock |
 
 ## Dev Notes
 
@@ -308,15 +357,19 @@ This is the first story in Epic 7 (ML Demand Forecasting, Cook Plan & Waste Inte
 
 ### Key Design Decisions
 
-1. **No schema changes.** All models (Ingredient, InventoryRecord, DemandForecast, MenuItemIngredient) already exist from Story 1.2. This story is purely about UI + API on existing tables.
+1. **Schema changes required.** `InventoryRecord` now includes `receivedStock` and `consumedStock` (both `Decimal? @db.Decimal(8, 3)`). `Ingredient` now includes `isActive` (Boolean, default true) for soft-delete. A Prisma migration is required.
 
-2. **Forecasted Need = NULL-safe.** Since DemandForecast records won't exist until Story 7.3's cron runs, the UI must handle the "no forecast" state gracefully. The API should return `forecastedNeed: null, hasForecast: false` when no DemandForecast records exist for tomorrow.
+2. **Forecasted Need = NULL-safe.** Since DemandForecast records won't exist until Story 7.3's cron runs, the UI must handle the "no forecast" state gracefully. The API returns `forecastedNeed: null, hasForecast: false` when no DemandForecast records exist for tomorrow.
 
 3. **Upsert pattern.** Use Prisma `upsert` on the `(ingredientId, date)` unique composite key. This handles both create-new and update-existing in one database call. The upsert is idempotent — safe for repeat calls.
 
-4. **Wastage simplified for now.** Current wastage = `openingStock - closingStock`. The full formula `openingStock - closingStock - soldPortions` will be added in Story 7.5 when the ingredient-to-order mapping is built. Mark this clearly in code comments.
+4. **Corrected wastage formula.** Wastage = openingStock + receivedStock − consumedStock − closingStock. In v1, all four fields are manual entry. In v2 (Story 7.5), consumedStock will be auto-derived from order data.
 
-5. **Ingredient units come from the Ingredient model.** Each ingredient has a `unit` field ("kg" or "liters"). Display this next to the ingredient name.
+5. **Auto-carryover (today only).** When no inventory record exists for today, the Opening Stock field auto-populates from yesterday's Closing Stock. This is a UI-level convenience; the actual DB record is only created when the user saves. No cascading carryover for past dates — navigating to a past date shows DB values as-is.
+
+6. **Ingredient soft-delete.** Setting `isActive = false` retires an ingredient without breaking historical references. Only active ingredients appear in the daily entry table. Retired ingredients remain visible in 7-day history with a "(retired)" label.
+
+7. **History cache invalidation.** When a save completes in the Today view, the history state is cleared (set to `[]`), forcing a fresh fetch on the next manual refresh/toggle. No automatic push-sync to the history pane.
 
 ### Forecasted Need Calculation (Server-Side)
 
@@ -381,8 +434,10 @@ The existing Admin Dashboard header has buttons for "Dashboard", "Orders", and "
 | date | Cannot be > 1 day in the past | "Stock entries cannot be backdated more than 1 day." |
 | date | Cannot be in the future | "Stock entries cannot be future-dated." |
 | openingStock | Must be ≥ 0 | "Opening stock cannot be negative." |
-| closingStock | Must be ≥ 0 | "Closing stock cannot be negative." |
-| closingStock | Warning if > openingStock | "Closing stock exceeds opening stock. Please verify." (soft warning, still allows save) |
+| receivedStock | Must be ≥ 0 (if provided) | "Received stock cannot be negative." |
+| consumedStock | Must be ≥ 0 (if provided) | "Consumed stock cannot be negative." |
+| closingStock | Must be ≥ 0 (if provided) | "Closing stock cannot be negative." |
+| closingStock | Warning if > openingStock + receivedStock − consumedStock | "Closing stock exceeds available stock. Please verify." (soft warning, still allows save) |
 
 ### References
 
@@ -411,20 +466,22 @@ GitHub Copilot (DeepSeek V4 Pro)
 ### Completion Notes
 
 - All 6 tasks completed with zero lint errors across 7 files (6 new, 1 modified)
-- No Prisma schema changes required — all models existed from Story 1.2
-- API routes: GET /api/admin/inventory (today's stock + forecasted need per ingredient), POST /api/admin/inventory (upsert via (ingredientId, date) composite key), GET /api/admin/inventory/history (7-day range query)
+- Prisma schema updated: `InventoryRecord` gains `receivedStock`, `consumedStock`; `Ingredient` gains `isActive`; migration required
+- API routes: GET /api/admin/inventory (today's stock + forecasted need + auto-carryover), POST /api/admin/inventory (upsert with receivedStock, consumedStock, corrected wastage), GET /api/admin/inventory/history (7-day range query)
 - All routes secured with requireApiRole("ADMIN")
 - Forecasted need calculated server-side as Σ(quantityPerPortion × predictedQty) across MenuItemIngredient links to DemandForecast for tomorrow
-- Graceful handling: forecastedNeed returns null with "—" display when no DemandForecast exists (before Story 7.3 cron runs)
-- Date validation: reject dates > 1 day in past (FR-26b) and future dates
-- Amount validation: non-negative opening/closing stock
-- Wastage computed as openingStock - closingStock; full formula (including soldPortions) deferred to Story 7.5
-- Admin dashboard: "Inventory" nav button added alongside existing Orders/Menu/Refresh buttons
-- Mobile responsive: table uses overflow-x-auto for horizontal scroll on small screens
+- Graceful handling: forecastedNeed returns null with "—" display when no DemandForecast exists
+- Date validation: reject dates > 1 day in past and future dates
+- Amount validation: non-negative for all stock fields
+- Wastage = openingStock + receivedStock − consumedStock − closingStock
+- Auto-carryover: yesterday's closing → today's opening (today only) via buildInventoryRows
+- History cache invalidation: save in Today view clears history state for next manual refresh
+- "← Dashboard" back-navigation button in inventory header
+- Inline ingredient CRUD: Add / Rename / Soft-delete (isActive flag) on inventory page
+- Admin dashboard: "Inventory" nav button alongside Orders/Menu/Refresh
+- Mobile responsive: table uses overflow-x-auto
 - Dark mode glassmorphism aesthetic consistent with existing admin pages
-- Toggle between Today view (with date navigation) and 7-Day History view (with date range picker)
-- Inline save per row with success animation (green check) and error display (red text)
-- Empty states: "No ingredients configured", "No inventory records for date", "No records for date range"
+- Inline save per row with success animation and error display
 
 ### File List
 
@@ -448,3 +505,11 @@ GitHub Copilot (DeepSeek V4 Pro)
   - Admin dashboard navigation link to Inventory
   - All routes secured with requireApiRole("ADMIN")
   - Zero lint errors in new files
+- 2026-08-08 (Post-Review Update): Architectural corrections applied
+  - Prisma schema: added `receivedStock`, `consumedStock` to InventoryRecord; added `isActive` to Ingredient
+  - Wastage formula corrected: openingStock + receivedStock − consumedStock − closingStock
+  - Auto-carryover: yesterday's closing → today's opening (today only, no cascading)
+  - History cache invalidation on save (not auto-push)
+  - "← Dashboard" back-navigation button added
+  - Inline ingredient CRUD with soft-delete (isActive flag)
+  - Two-tier procurement alert visual: amber (warning) + red (critical) left borders

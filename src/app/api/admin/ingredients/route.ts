@@ -6,12 +6,16 @@ import { NextRequest, NextResponse } from "next/server";
  * GET /api/admin/ingredients — List all ingredients
  * POST /api/admin/ingredients — Create new ingredient
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireApiRole("ADMIN");
   if (auth.error) return auth.error;
 
+  const { searchParams } = new URL(req.url);
+  const includeInactive = searchParams.get("includeInactive") === "true";
+
   const ingredients = await prisma.ingredient.findMany({
-    select: { id: true, name: true, unit: true },
+    where: includeInactive ? {} : { isActive: true },
+    select: { id: true, name: true, unit: true, isActive: true },
     orderBy: { name: "asc" },
   });
 

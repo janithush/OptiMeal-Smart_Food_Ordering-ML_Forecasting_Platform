@@ -379,18 +379,23 @@ When a menu item's units sold falls below 30% of its Cook Plan target by 12:30 P
 - Flash Deal discount auto-removes at the specified expiry time.
 
 #### FR-26: Inventory Management
-Admins record daily opening stock levels per ingredient and log end-of-day levels. View current stock vs. forecasted ingredient need for the next day. [ASSUMPTION: Ingredient-to-menu-item recipe ratios are manually configured by Admin.]
+Admins record daily stock levels per ingredient: Opening Stock (auto-carried from yesterday's Closing for today), Received Stock (mid-day deliveries), Consumed Stock (used for cooking; manual v1, auto-derived v2), and Closing Stock. Wastage is auto-calculated as: Opening + Received − Consumed − Closing. View current stock vs. forecasted ingredient need for the next day. [ASSUMPTION: Ingredient-to-menu-item recipe ratios are manually configured by Admin.]
 
 **Consequences (testable):**
-- Forecasted ingredient need = ML Demand Forecast × configured recipe ratios.
+- Forecasted ingredient need = ML Demand Forecast × configured recipe ratios (quantityPerPortion on MenuItemIngredient).
 - Stock entries are date-stamped and cannot be backdated more than 1 day.
+- Wastage correctly reflects the corrected formula (Opening + Received − Consumed − Closing).
+- Yesterday's Closing auto-populates as today's Opening (today only, no cascading carryover).
+- Ingredients support soft-delete (isActive flag) to preserve historical records.
 
 #### FR-27: Procurement Alert & Purchase Order Generation
-When current ingredient stock is projected insufficient for tomorrow's Cook Plan (coverage < 1 day's forecasted need), a Procurement Alert is generated. Admins generate a PDF Purchase Order listing ingredient, required quantity, and date.
+Two-tier alert system: **Critical** (Red) when current ingredient stock < tomorrow's forecasted need; **Warning** (Amber) when stock is below forecasted need × 1.15 but still sufficient. Admins generate a PDF Purchase Order listing ingredient, required quantity (+10% buffer), and date.
 
 **Consequences (testable):**
-- Procurement Alert appears within 30 minutes of stock falling below the threshold.
-- PDF correctly lists all flagged ingredients with quantities.
+- Procurement Alert appears within 30 minutes of stock crossing either threshold.
+- PDF correctly lists all flagged ingredients with quantities + 10% buffer.
+- Dashboard Procurement Alerts section is always visible (shows empty state when all stock is adequate).
+- Red left border on inventory rows for Critical alerts; amber border for Warning alerts.
 
 #### FR-28: Staff Planning Flags
 The Admin dashboard highlights days in the next 7 days where the ML Demand Forecast predicts total orders > 20% above the 7-day rolling average, flagged as "High Traffic."

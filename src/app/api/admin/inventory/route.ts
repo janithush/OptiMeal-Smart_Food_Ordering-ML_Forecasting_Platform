@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
  *   ingredientId: string (required)
  *   date: YYYY-MM-DD (required)
  *   openingStock: number (required, >= 0)
+ *   receivedStock: number | null (optional, >= 0)
+ *   consumedStock: number | null (optional, >= 0)
  *   closingStock: number | null (optional, >= 0)
  */
 export async function POST(req: NextRequest) {
@@ -95,6 +97,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Validate amounts
+  const receivedStock = body.receivedStock !== undefined && body.receivedStock !== null
+    ? Number(body.receivedStock)
+    : null;
+  const consumedStock = body.consumedStock !== undefined && body.consumedStock !== null
+    ? Number(body.consumedStock)
+    : null;
   const closingStock = body.closingStock !== undefined && body.closingStock !== null
     ? Number(body.closingStock)
     : null;
@@ -106,17 +114,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const amountError = validateStockAmounts(openingStock, closingStock);
+  const amountError = validateStockAmounts(openingStock, receivedStock, consumedStock, closingStock);
   if (amountError) {
     return NextResponse.json({ error: amountError }, { status: 400 });
   }
 
   const date = new Date(dateStr + "T00:00:00Z");
 
-  // Calculate wastage: openingStock - closingStock
-  // NOTE (Story 7.5): Full formula = openingStock - closingStock - soldPortions
+  // Calculate wastage: openingStock + receivedStock - consumedStock - closingStock
+  const received = receivedStock ?? 0;
+  const consumed = consumedStock ?? 0;
   const wastage =
-    closingStock !== null ? openingStock - closingStock : null;
+    closingStock !== null ? openingStock + received - consumed - closingStock : null;
 
   const record = await prisma.inventoryRecord.upsert({
     where: {
@@ -129,11 +138,15 @@ export async function POST(req: NextRequest) {
       ingredientId,
       date,
       openingStock,
+      receivedStock,
+      consumedStock,
       closingStock,
       wastage,
     },
     update: {
       openingStock,
+      receivedStock,
+      consumedStock,
       closingStock,
       wastage,
     },
@@ -145,6 +158,8 @@ export async function POST(req: NextRequest) {
       ingredientId: record.ingredientId,
       date: record.date.toISOString().split("T")[0],
       openingStock: Number(record.openingStock),
+      receivedStock: record.receivedStock !== null ? Number(record.receivedStock) : null,
+      consumedStock: record.consumedStock !== null ? Number(record.consumedStock) : null,
       closingStock: record.closingStock !== null ? Number(record.closingStock) : null,
       wastage: record.wastage !== null ? Number(record.wastage) : null,
       createdAt: record.createdAt.toISOString(),

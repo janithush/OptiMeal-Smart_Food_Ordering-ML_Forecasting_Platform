@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
       name: string;
       unit: string;
       openingStock: number | null;
+      receivedStock: number | null;
+      consumedStock: number | null;
       closingStock: number | null;
       wastage: number | null;
     }>;
@@ -90,6 +92,14 @@ export async function GET(req: NextRequest) {
         name: ing.name,
         unit: ing.unit,
         openingStock: rec ? Number(rec.openingStock) : null,
+        receivedStock:
+          rec && rec.receivedStock !== null
+            ? Number(rec.receivedStock)
+            : null,
+        consumedStock:
+          rec && rec.consumedStock !== null
+            ? Number(rec.consumedStock)
+            : null,
         closingStock:
           rec && rec.closingStock !== null
             ? Number(rec.closingStock)
