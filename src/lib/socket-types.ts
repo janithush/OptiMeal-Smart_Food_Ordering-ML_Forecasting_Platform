@@ -88,6 +88,18 @@ export interface ServerToClientEvents {
     itemCount: number;
     timestamp: string;
   }) => void;
+  // Story 7.2/7.3: Procurement / forecast alerts (fire-and-forget events)
+  procurementAlert: (payload: {
+    type: string;
+    message: string;
+    timestamp: string;
+  }) => void;
+  // Story 7.6: Model retrain rollback alert
+  modelRetrainAlert: (payload: {
+    rollbacks: Array<{ itemName: string; mae: number; rollbackReason: string | null }>;
+    message: string;
+    timestamp: string;
+  }) => void;
 }
 
 // Events the CLIENT emits TO the SERVER

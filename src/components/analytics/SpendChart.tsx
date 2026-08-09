@@ -6,12 +6,13 @@ interface Props {
   data: { day: string; spend: number }[];
 }
 
-function CustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
-  if (!active || !payload?.length) return null;
+function CustomTooltip(props: TooltipProps<number, string>) {
+  const p = props as TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string };
+  if (!p.active || !p.payload?.length) return null;
   return (
     <div className="rounded-lg px-3 py-2 text-xs" style={{ background: "oklch(0.15 0.012 260)", border: "1px solid var(--glass-border)" }}>
-      <p className="text-[var(--text-muted)]">{label}</p>
-      <p className="text-[var(--brand)] font-bold">Rs.{payload[0].value?.toLocaleString()}</p>
+      <p className="text-[var(--text-muted)]">{p.label}</p>
+      <p className="text-[var(--brand)] font-bold">Rs.{p.payload[0].value?.toLocaleString()}</p>
     </div>
   );
 }

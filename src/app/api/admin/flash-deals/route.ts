@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
         unitsSoldAtStart: unitsSold._sum.quantity ?? 0,
         message: message || null,
         expiresAt: expiry,
-        createdBy: auth.userId,
+        createdBy: auth.session.user?.id ?? "admin",
       },
     });
 

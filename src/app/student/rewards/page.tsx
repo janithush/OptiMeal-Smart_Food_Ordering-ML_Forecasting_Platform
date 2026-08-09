@@ -30,6 +30,7 @@ export default async function RewardsPage() {
         earned: b.earned,
         redeemed: b.redeemed,
         source: b.source,
+        earnedAt: b.earnedAt.toISOString(),
         expiresAt: b.expiresAt.toISOString(),
       }))}
     />

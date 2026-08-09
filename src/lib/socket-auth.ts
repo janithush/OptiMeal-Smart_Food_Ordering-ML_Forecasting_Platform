@@ -55,9 +55,9 @@ async function tryDecode(
 ): Promise<Record<string, unknown> | null> {
   const { decode } = await import("next-auth/jwt");
   try {
-    const params: { token: string; secret: string; salt?: string } = { token, secret };
-    if (salt !== undefined) params.salt = salt;
-    const payload = await decode(params);
+    const decodeParams: { token: string; secret: string; salt?: string } = { token, secret };
+    if (salt) decodeParams.salt = salt;
+    const payload = await decode(decodeParams as { token: string; secret: string; salt: string });
     return (payload as Record<string, unknown>) ?? null;
   } catch {
     return null;

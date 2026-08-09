@@ -175,7 +175,7 @@ export async function confirmCookPlan(
   try {
     const io = getIO();
     io.of("/admin").emit("cookPlanConfirmed", {
-      date: today.toISOString().split("T")[0],
+      date: dateStr,
       confirmedBy: adminName,
       itemCount: result.count,
       timestamp: now.toISOString(),

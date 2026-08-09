@@ -112,6 +112,8 @@ describe("InventoryClient", () => {
               name: "Rice",
               unit: "kg",
               openingStock: null,
+              receivedStock: null,
+              consumedStock: null,
               closingStock: null,
               wastage: null,
               forecastedNeed: null,

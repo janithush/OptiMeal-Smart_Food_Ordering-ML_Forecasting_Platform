@@ -2,17 +2,18 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Coffee } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -116,5 +117,13 @@ export default function LoginPage() {
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[oklch(0.08_0.01_260)] flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

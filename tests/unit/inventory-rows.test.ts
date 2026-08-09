@@ -17,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
     },
     inventoryRecord: {
-      findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
@@ -30,7 +30,11 @@ import {
   getTomorrowDate,
 } from "@/lib/inventory";
 
-const mockPrisma = vi.mocked(prisma);
+const mockPrisma = prisma as unknown as {
+  ingredient: { findMany: ReturnType<typeof vi.fn> };
+  menuItemIngredient: { findMany: ReturnType<typeof vi.fn> };
+  inventoryRecord: { findMany: ReturnType<typeof vi.fn> };
+};
 
 describe("getTodayDate", () => {
   it("returns start of today in UTC", () => {
@@ -164,13 +168,12 @@ describe("buildInventoryRows", () => {
   });
 
   it("returns ingredients with null stock when no records exist", async () => {
-    // Return in alphabetical order (Chicken before Rice) to match Prisma's orderBy
     mockPrisma.ingredient.findMany.mockResolvedValue([
       { id: "ing-2", name: "Chicken", unit: "kg", createdAt: new Date() },
       { id: "ing-1", name: "Rice", unit: "kg", createdAt: new Date() },
     ] as never);
 
-    mockPrisma.inventoryRecord.findUnique.mockResolvedValue(null);
+    mockPrisma.inventoryRecord.findMany.mockResolvedValue([]);
     mockPrisma.menuItemIngredient.findMany.mockResolvedValue([]);
 
     const today = getTodayDate();
@@ -185,23 +188,27 @@ describe("buildInventoryRows", () => {
   });
 
   it("returns stock values when records exist", async () => {
+    const today = getTodayDate();
     mockPrisma.ingredient.findMany.mockResolvedValue([
       { id: "ing-1", name: "Rice", unit: "kg", createdAt: new Date() },
     ] as never);
 
-    mockPrisma.inventoryRecord.findUnique.mockResolvedValue({
-      id: "rec-1",
-      ingredientId: "ing-1",
-      date: new Date(),
-      openingStock: 25.0,
-      closingStock: 22.0,
-      wastage: 3.0,
-      createdAt: new Date(),
-    } as never);
+    mockPrisma.inventoryRecord.findMany.mockResolvedValue([
+      {
+        id: "rec-1",
+        ingredientId: "ing-1",
+        date: today,
+        openingStock: 25.0,
+        receivedStock: null,
+        consumedStock: null,
+        closingStock: 22.0,
+        wastage: 3.0,
+        createdAt: new Date(),
+      },
+    ] as never);
 
     mockPrisma.menuItemIngredient.findMany.mockResolvedValue([]);
 
-    const today = getTodayDate();
     const rows = await buildInventoryRows(today);
 
     expect(rows[0].openingStock).toBe(25.0);

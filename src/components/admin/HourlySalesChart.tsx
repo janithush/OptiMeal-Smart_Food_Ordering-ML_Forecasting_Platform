@@ -6,7 +6,8 @@ interface Props {
   data: { hour: string; orders: number; revenue: number }[];
 }
 
-function CustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function CustomTooltip(props: TooltipProps<number, string>) {
+  const { active, payload, label } = props as TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string };
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg px-3 py-2 text-xs" style={{ background: "oklch(0.15 0.012 260)", border: "1px solid var(--glass-border)" }}>

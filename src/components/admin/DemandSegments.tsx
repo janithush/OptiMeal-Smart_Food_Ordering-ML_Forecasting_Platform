@@ -54,9 +54,10 @@ var DIET_COLORS: Record<string, string> = {
 function CustomTooltip(
   props: TooltipProps<number, string> & { unit?: string }
 ) {
-  var active = props.active;
-  var payload = props.payload;
-  var label = props.label;
+  var p = props as TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string; unit?: string };
+  var active = p.active;
+  var payload = p.payload;
+  var label = p.label;
   if (!active || !payload || !payload.length) return null;
   return (
     <div
@@ -77,8 +78,9 @@ function CustomTooltip(
 var PIE_COLORS = ["oklch(0.62 0.19 250)", "oklch(0.62 0.19 80)", "oklch(0.55 0.20 300)", "oklch(0.55 0.20 15)"];
 
 function PieTooltip(props: TooltipProps<number, string>) {
-  var active = props.active;
-  var payload = props.payload;
+  var p = props as TooltipProps<number, string> & { payload?: Array<{ name?: string; value?: number }> };
+  var active = p.active;
+  var payload = p.payload;
   if (!active || !payload || !payload.length) return null;
   return (
     <div

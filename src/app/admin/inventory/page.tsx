@@ -10,6 +10,8 @@ async function fetchInitialInventory(): Promise<{
     name: string;
     unit: string;
     openingStock: number | null;
+    receivedStock: number | null;
+    consumedStock: number | null;
     closingStock: number | null;
     wastage: number | null;
     forecastedNeed: number | null;
