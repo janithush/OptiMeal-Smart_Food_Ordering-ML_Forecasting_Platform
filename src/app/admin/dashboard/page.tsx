@@ -11,7 +11,7 @@ async function fetchInitialDashboard(): Promise<DashboardPayload> {
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://canteen-system-eight.vercel.app";
   const res = await fetch(`${baseUrl}/api/admin/dashboard`, {
     headers: { Cookie: cookieHeader },
     cache: "no-store",
