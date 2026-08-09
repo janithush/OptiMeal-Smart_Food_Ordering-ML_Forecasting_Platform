@@ -40,6 +40,8 @@ function makeInitialData(overrides?: Partial<{ date: string; ingredients: Ingred
         name: "Rice",
         unit: "kg",
         openingStock: 25.0,
+        receivedStock: null,
+        consumedStock: null,
         closingStock: 22.0,
         wastage: 3.0,
         forecastedNeed: 18.5,

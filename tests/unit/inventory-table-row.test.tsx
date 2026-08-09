@@ -20,6 +20,8 @@ function makeIngredient(overrides: Partial<IngredientRowData> = {}): IngredientR
     name: "Rice",
     unit: "kg",
     openingStock: null,
+    receivedStock: null,
+    consumedStock: null,
     closingStock: null,
     wastage: null,
     forecastedNeed: null,
@@ -60,7 +62,7 @@ describe("InventoryTableRow", () => {
     );
 
     // The "—" has a title tooltip
-    const dashEl = screen.getByTitle("Forecast not yet generated. Runs daily at 6 PM.");
+    const dashEl = screen.getByTitle("Tomorrow's forecast not yet generated. Runs daily at 6 PM.");
     expect(dashEl.textContent).toBe("—");
   });
 
@@ -78,7 +80,7 @@ describe("InventoryTableRow", () => {
     expect(screen.getByText("18.500")).toBeDefined();
   });
 
-  it("computes wastage from opening - closing", () => {
+  it("computes wastage from opening + received - consumed - closing", () => {
     render(
       <table><tbody>
         <InventoryTableRow
@@ -89,7 +91,7 @@ describe("InventoryTableRow", () => {
       </tbody></table>
     );
 
-    // Wastage = 25 - 22.5 = 2.5
+    // Wastage = 25 + 0 - 0 - 22.5 = 2.5
     expect(screen.getByText("2.500")).toBeDefined();
   });
 

@@ -64,27 +64,42 @@ describe("validateStockDate", () => {
 
 describe("validateStockAmounts", () => {
   it("accepts valid opening and closing stock", () => {
-    const error = validateStockAmounts(25.0, 22.5);
+    const error = validateStockAmounts(25.0, null, null, 22.5);
     expect(error).toBeNull();
   });
 
   it("accepts null closing stock", () => {
-    const error = validateStockAmounts(25.0, null);
+    const error = validateStockAmounts(25.0, null, null, null);
     expect(error).toBeNull();
   });
 
   it("rejects negative opening stock", () => {
-    const error = validateStockAmounts(-5, 10);
+    const error = validateStockAmounts(-5, null, null, 10);
     expect(error).toContain("negative");
   });
 
   it("rejects negative closing stock", () => {
-    const error = validateStockAmounts(25, -5);
+    const error = validateStockAmounts(25, null, null, -5);
     expect(error).toContain("negative");
   });
 
   it("accepts zero opening stock", () => {
-    const error = validateStockAmounts(0, 0);
+    const error = validateStockAmounts(0, null, null, 0);
+    expect(error).toBeNull();
+  });
+
+  it("rejects negative received stock", () => {
+    const error = validateStockAmounts(10, -1, null, 5);
+    expect(error).toContain("negative");
+  });
+
+  it("rejects negative consumed stock", () => {
+    const error = validateStockAmounts(10, null, -1, 5);
+    expect(error).toContain("negative");
+  });
+
+  it("accepts all valid fields", () => {
+    const error = validateStockAmounts(25.0, 5.0, 7.5, 22.0);
     expect(error).toBeNull();
   });
 });
