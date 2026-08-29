@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import InventoryClient from "./InventoryClient";
 
 async function fetchInitialInventory(): Promise<{
@@ -24,7 +24,14 @@ async function fetchInitialInventory(): Promise<{
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  // Build the absolute base URL from the request's host header so this
+  // works in dev, on Vercel, and behind a reverse proxy without
+  // requiring an env var to be set.
+  const requestHeaders = await headers();
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
+  const host = requestHeaders.get("host") ?? "localhost:3000";
+  const baseUrl = `${proto}://${host}`;
+
   const res = await fetch(`${baseUrl}/api/admin/inventory`, {
     headers: { Cookie: cookieHeader },
     cache: "no-store",

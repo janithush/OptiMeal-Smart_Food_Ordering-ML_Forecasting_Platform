@@ -510,8 +510,8 @@ export default function CookPlanClient({ userName, initialData }: Props) {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden sm:block overflow-x-auto -mx-2 sm:mx-0">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[oklch(0.10_0.01_260)]">
                     <th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
@@ -638,6 +638,84 @@ export default function CookPlanClient({ userName, initialData }: Props) {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* ── Mobile card view (sm and below) ── */}
+          {data.items.length > 0 && (
+            <div className="sm:hidden space-y-2 mt-3">
+              {data.items.map((item) => {
+                const isReadOnly = item.status === "CONFIRMED" && data.isLocked;
+                const editVal =
+                  editValues[item.id] !== undefined ? editValues[item.id] : String(item.finalQty);
+                return (
+                  <div
+                    key={`card-${item.id}`}
+                    className={`rounded-xl p-3 border border-[rgba(255,255,255,0.07)] ${
+                      item.adminAdjusted ? "border-l-amber-500/50 border-l-2" : ""
+                    }`}
+                    style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          {item.menuItemName}
+                        </p>
+                        {item.confidenceScore !== null && (
+                          <p className="text-[10px] text-[var(--text-disabled)] font-mono">
+                            conf {item.confidenceScore.toFixed(0)}% · {item.modelVersion ?? "—"}
+                          </p>
+                        )}
+                      </div>
+                      {statusBadge(item.status)}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center text-[11px] mb-2">
+                      <div>
+                        <p className="text-[var(--text-disabled)]">Forecast</p>
+                        <p className="font-mono text-[var(--text-primary)]">{item.forecastQty}</p>
+                      </div>
+                      <div>
+                        <p className="text-[var(--text-disabled)]">Pre-Order</p>
+                        <p className="font-mono text-[var(--text-primary)]">{item.preOrderQty}</p>
+                      </div>
+                      <div>
+                        <p className="text-[var(--text-disabled)]">Buffer</p>
+                        <p className="font-mono text-[var(--text-primary)]">+{item.bufferQty}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] text-[var(--text-muted)] flex-shrink-0">Final</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editVal}
+                        onChange={(e) =>
+                          setEditValues((prev) => ({ ...prev, [item.id]: e.target.value }))
+                        }
+                        disabled={isReadOnly && overrideDialog !== item.id}
+                        className="flex-1 h-8 px-2 rounded text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] font-mono"
+                      />
+                      {successIds.has(item.id) ? (
+                        <span className="text-emerald-400">
+                          <Check className="w-4 h-4" />
+                        </span>
+                      ) : savingIds.has(item.id) ? (
+                        <Loader2 className="w-4 h-4 text-[var(--text-muted)] animate-spin" />
+                      ) : (
+                        !isReadOnly && (
+                          <button
+                            onClick={() => handleSaveItem(item.id, parseInt(editVal) || 0)}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                          >
+                            <Save className="w-3 h-3" />
+                            Save
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 

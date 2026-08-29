@@ -10,13 +10,13 @@ import ModelHealth from "@/components/admin/ModelHealth";
 export const dynamic = "force-dynamic";
 
 export default async function AdminAnalyticsPage() {
-  var session = await requireAuth();
+  const session = await requireAuth();
 
   if (session.user.role !== "ADMIN") {
     redirect("/forbidden");
   }
 
-  var todayStr = getTodayDate().toISOString().split("T")[0];
+  const todayStr = getTodayDate().toISOString().split("T")[0];
 
   return (
     <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">

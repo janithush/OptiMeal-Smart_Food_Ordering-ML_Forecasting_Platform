@@ -3,12 +3,21 @@
  *
  * Story 7.1: Inventory Stock Entry & Forecasting View
  *
+ * IMPORTANT: This test asserts that the "Today" badge is shown when the
+ * component is rendered with today's date. The component determines
+ * "today" using the production helper `getColomboDateString()` from
+ * `@/lib/date-utils`, which is strictly localized to Asia/Colombo
+ * (UTC+5:30). The test MUST use the same helper — see
+ * `tests/support/helpers/colombo-date.ts` — otherwise it will flake
+ * for ~5 hours of every day near the UTC/Colombo date boundary.
+ *
  * Run: npx vitest run tests/unit/inventory-client.test.tsx
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import InventoryClient from "@/app/admin/inventory/InventoryClient";
 import type { IngredientRowData } from "@/components/admin/InventoryTableRow";
+import { getColomboTodayString } from "../support/helpers/colombo-date";
 
 // Mock framer-motion (avoids animation issues in jsdom)
 vi.mock("framer-motion", () => ({
@@ -68,7 +77,10 @@ describe("InventoryClient", () => {
   });
 
   it("shows today's date with 'Today' badge", () => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    // Use the same Colombo-time helper the component itself uses
+    // (`getColomboDateString()`) so the test stays aligned with the
+    // production logic, even at the UTC/Colombo day boundary.
+    const todayStr = getColomboTodayString();
     render(
       <InventoryClient
         userName="Admin"

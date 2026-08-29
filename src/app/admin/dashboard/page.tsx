@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import AdminDashboardClient from "./AdminDashboardClient";
 import type { DashboardPayload } from "@/lib/order-events";
 
@@ -11,14 +11,19 @@ async function fetchInitialDashboard(): Promise<DashboardPayload> {
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://canteen-system-eight.vercel.app";
+  // Build the absolute base URL from the request's host header so this
+  // works in dev, on Vercel, and behind a reverse proxy.
+  const requestHeaders = await headers();
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
+  const host = requestHeaders.get("host") ?? "localhost:3000";
+  const baseUrl = `${proto}://${host}`;
+
   const res = await fetch(`${baseUrl}/api/admin/dashboard`, {
     headers: { Cookie: cookieHeader },
     cache: "no-store",
   });
 
   if (!res.ok) {
-    // Return empty state on error
     return {
       totalOrders: 0,
       totalRevenue: 0,

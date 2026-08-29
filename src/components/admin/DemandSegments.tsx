@@ -39,13 +39,13 @@ interface DemandResponse {
 
 // ── Chart colors (dark theme) ────────────────────────────────────
 
-var DEPT_COLORS: Record<string, string> = {
+const DEPT_COLORS: Record<string, string> = {
   ICT: "oklch(0.62 0.19 250)",
   ET: "oklch(0.62 0.19 80)",
   BST: "oklch(0.55 0.20 300)",
 };
 
-var DIET_COLORS: Record<string, string> = {
+const DIET_COLORS: Record<string, string> = {
   NON_VEGETARIAN: "oklch(0.55 0.20 15)",
   VEGETARIAN: "oklch(0.62 0.19 150)",
   VEGAN: "oklch(0.55 0.20 80)",
@@ -54,10 +54,10 @@ var DIET_COLORS: Record<string, string> = {
 function CustomTooltip(
   props: TooltipProps<number, string> & { unit?: string }
 ) {
-  var p = props as TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string; unit?: string };
-  var active = p.active;
-  var payload = p.payload;
-  var label = p.label;
+  const p = props as TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string; unit?: string };
+  const active = p.active;
+  const payload = p.payload;
+  const label = p.label;
   if (!active || !payload || !payload.length) return null;
   return (
     <div
@@ -75,12 +75,12 @@ function CustomTooltip(
   );
 }
 
-var PIE_COLORS = ["oklch(0.62 0.19 250)", "oklch(0.62 0.19 80)", "oklch(0.55 0.20 300)", "oklch(0.55 0.20 15)"];
+const PIE_COLORS = ["oklch(0.62 0.19 250)", "oklch(0.62 0.19 80)", "oklch(0.55 0.20 300)", "oklch(0.55 0.20 15)"];
 
 function PieTooltip(props: TooltipProps<number, string>) {
-  var p = props as TooltipProps<number, string> & { payload?: Array<{ name?: string; value?: number }> };
-  var active = p.active;
-  var payload = p.payload;
+  const p = props as TooltipProps<number, string> & { payload?: Array<{ name?: string; value?: number }> };
+  const active = p.active;
+  const payload = p.payload;
   if (!active || !payload || !payload.length) return null;
   return (
     <div
@@ -99,15 +99,15 @@ function PieTooltip(props: TooltipProps<number, string>) {
 // ── Component ────────────────────────────────────────────────────
 
 export default function DemandSegments() {
-  var _useState1 = useState<DemandResponse | null>(null);
-  var data = _useState1[0];
-  var setData = _useState1[1];
-  var _useState2 = useState(true);
-  var loading = _useState2[0];
-  var setLoading = _useState2[1];
-  var _useState3 = useState<string | null>(null);
-  var error = _useState3[0];
-  var setError = _useState3[1];
+  const _useState1 = useState<DemandResponse | null>(null);
+  const data = _useState1[0];
+  const setData = _useState1[1];
+  const _useState2 = useState(true);
+  const loading = _useState2[0];
+  const setLoading = _useState2[1];
+  const _useState3 = useState<string | null>(null);
+  const error = _useState3[0];
+  const setError = _useState3[1];
 
   useEffect(function () {
     fetch("/api/admin/analytics/demand-segments")
@@ -140,8 +140,8 @@ export default function DemandSegments() {
     );
   }
 
-  var hasDepartmentData = data.byDepartment.length > 0;
-  var hasDietaryData = data.byDietaryPreference.length > 0;
+  const hasDepartmentData = data.byDepartment.length > 0;
+  const hasDietaryData = data.byDietaryPreference.length > 0;
 
   if (!hasDepartmentData && !hasDietaryData) {
     return (

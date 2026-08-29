@@ -100,31 +100,39 @@ async function main() {
   // 6. Define /student namespace (Story 3.5: order status, Story 4.2: wallet)
   const studentNS = io.of("/student");
 
-  // ── JWT auth middleware (Story 3.5) ──────────────────────────
+  // ── JWT auth middleware (Story 3.5, hardened in Phase 2) ─────
+  // Only authenticated students may connect. Per-user rooms are joined in
+  // the connection handler so events are only ever delivered to the
+  // owning user's tab. There is no anonymous / global broadcast.
   studentNS.use(async (socket, next) => {
     const req = socket.request as unknown as { headers: { cookie?: string } };
     const session = await extractSessionFromCookie(req.headers.cookie ?? "", AUTH_SECRET);
 
-    if (session) {
-      socket.data.userId = session.userId;
-      socket.data.role = session.role;
-    }
-    // Always allow connection — per-user rooms joined in the handler below.
-    // Non-authenticated sockets get global broadcasts only.
+    if (!session) return next(new Error("Unauthorized"));
+    if (session.role !== "STUDENT") return next(new Error("Forbidden"));
+
+    socket.data.userId = session.userId;
+    socket.data.role = session.role;
     next();
   });
 
   // ── Connection handler + per-user rooms ─────────────────────
   studentNS.on("connection", async (socket) => {
-    console.log(`[socket/student] connected: ${socket.id}`);
+    console.log(`[socket/student] connected: ${socket.id} (${socket.data.userId})`);
 
-    if (socket.data.userId) {
-      socket.join(`user:${socket.data.userId}`);
-      console.log(`[socket/student] ${socket.id} → room user:${socket.data.userId}`);
-    }
+    // Always join the per-user room — emits from the server are sent
+    // exclusively to this room (see emitOrderStatusUpdate in order-events.ts).
+    socket.join(`user:${socket.data.userId}`);
+    console.log(`[socket/student] ${socket.id} → room user:${socket.data.userId}`);
 
     socket.on("ping", () => {
-      socket.emit("orderStatusChanged", { orderId: "ping-test", status: "PONG", orderNumber: "TEST", slotDisplay: null, timestamp: new Date().toISOString() });
+      socket.emit("orderStatusChanged", {
+        orderId: "ping-test",
+        status: "PONG",
+        orderNumber: "TEST",
+        slotDisplay: null,
+        timestamp: new Date().toISOString(),
+      });
     });
 
     socket.on("disconnect", (reason) => {

@@ -1,0 +1,107 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-entrypoint.sh — Pre-flight check + start CaféSmart in production.
+# ─────────────────────────────────────────────────────────────────────────────
+# Verifies that every required env var is present and non-empty BEFORE
+# booting Next.js. This prevents the "silent 500 from Prisma" failure
+# mode where the app starts but every DB query crashes.
+#
+# Add new required vars by appending to REQUIRED_VARS below.
+# ─────────────────────────────────────────────────────────────────────────────
+set -eu
+
+# ANSI helpers
+_red()    { printf "\033[31m%s\033[0m\n" "$*"; }
+_green()  { printf "\033[32m%s\033[0m\n" "$*"; }
+_yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
+_bold()   { printf "\033[1m%s\033[0m\n" "$*"; }
+
+# ── Required env vars (fail fast if any are missing or empty) ─────────────
+# These are the absolute minimum for the app to boot and serve any
+# meaningful request. Add optional integrations separately below.
+REQUIRED_VARS="
+  DATABASE_URL
+  AUTH_SECRET
+  AUTH_URL
+  AUTH_GOOGLE_ID
+  AUTH_GOOGLE_SECRET
+  PAYHERE_MERCHANT_ID
+  PAYHERE_MERCHANT_SECRET
+  ML_SERVICE_URL
+  NEXT_PUBLIC_BASE_URL
+"
+
+MISSING=""
+for v in $REQUIRED_VARS; do
+  eval "val=\${$v:-}"
+  if [ -z "$val" ]; then
+    MISSING="$MISSING $v"
+  fi
+done
+
+if [ -n "$MISSING" ]; then
+  _red "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  _red "  ✗ CaféSmart startup aborted — missing required env vars:"
+  for v in $MISSING; do
+    _red "      - $v"
+  done
+  _red "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  _red ""
+  _red "  Fix: copy .env.example to .env, fill in the values, then run:"
+  _red "      docker run --rm -p 3000:3000 -p 8000:8000 \\"
+  _red "             --env-file .env cafesmart:latest"
+  _red ""
+  _red "  Or use the bootstrap helper:"
+  _red "      ./scripts/init-env.sh        # Linux/macOS"
+  _red "      .\\scripts\\init-env.ps1        # Windows PowerShell"
+  _red "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 1
+fi
+
+# ── Validate DATABASE_URL looks like a Postgres URL ──────────────────────
+case "$DATABASE_URL" in
+  postgresql://*|postgres://*)
+    : # ok
+    ;;
+  *)
+    _red "  ✗ DATABASE_URL must start with postgresql:// or postgres://"
+    _red "    Got: ${DATABASE_URL:0:30}..."
+    exit 1
+    ;;
+esac
+
+# ── Validate AUTH_SECRET is long enough (>= 32 chars) ────────────────────
+if [ "${#AUTH_SECRET}" -lt 32 ]; then
+  _red "  ✗ AUTH_SECRET must be at least 32 characters (got ${#AUTH_SECRET})."
+  _red "    Generate one with:  node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\""
+  exit 1
+fi
+
+# ── Start the ML service in the background ───────────────────────────────
+_yellow "  • Starting ML microservice on port ${ML_SERVICE_PORT:-8000}..."
+cd /app/ml-service
+# uvicorn writes to stderr; we log to a file so docker logs capture it.
+nohup python3 -m uvicorn main:app --host 127.0.0.1 --port "${ML_SERVICE_PORT:-8000}" \
+  > /tmp/ml-service.log 2>&1 &
+ML_PID=$!
+echo "$ML_PID" > /tmp/ml-service.pid
+
+# Wait briefly for the ML service to come up (max 10s)
+for i in $(seq 1 20); do
+  if wget -q --spider --tries=1 "http://127.0.0.1:${ML_SERVICE_PORT:-8000}/health" 2>/dev/null; then
+    _green "  ✓ ML service is healthy (pid $ML_PID)"
+    break
+  fi
+  sleep 0.5
+done
+
+# ── Start the Next.js standalone server ──────────────────────────────────
+_green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+_green "  ✓ CaféSmart starting on port ${PORT:-3000}"
+_green "    ENV:   NODE_ENV=${NODE_ENV:-production}"
+_green "    DB:    ${DATABASE_URL%%@*}@***"
+_green "    ML:    $ML_SERVICE_URL"
+_green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+cd /app
+exec node server.js

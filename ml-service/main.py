@@ -9,7 +9,13 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from forecaster import run_forecast, run_retrain, MODELS_DIR
+from forecaster import (
+    run_retrain,
+    predict,
+    _fallback_prediction,
+    list_loaded_models,
+    MODELS_DIR,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,17 +63,54 @@ class ForecastResponse(BaseModel):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    """
+    Lightweight health probe.
+
+    Returns:
+      - status: "ok" always (the service is up and accepting requests)
+      - models: list of menu items with a trained model on disk
+      - models_loaded: int count (convenience for the admin dashboard)
+    """
+    models = list_loaded_models()
+    return {
+        "status": "ok",
+        "models": models,
+        "models_loaded": len(models),
+    }
 
 
 @app.post("/forecast", response_model=ForecastResponse)
 async def forecast(request: ForecastRequest):
-    """Generate per-item demand predictions for tomorrow."""
+    """Generate per-item demand predictions for tomorrow.
+
+    Per-item robustness: any item that the training pipeline fails to
+    model (e.g. brand new menu item with no history) falls back to a
+    public deterministic estimator and is marked with
+    ``modelVersion = "fallback-actuals"`` so the admin dashboard can
+    surface that the prediction is not from a trained model.
+    """
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     items_payload = [item.model_dump() for item in request.items]
     try:
-        results = run_forecast(items_payload, request.semester_period)
+        # Per-item predict with exception containment so one bad item
+        # never aborts the whole batch.
+        results = []
+        for raw in items_payload:
+            try:
+                results.append(predict(raw))
+            except Exception as inner_exc:  # noqa: BLE001
+                logger.exception(
+                    "Per-item prediction failed for %s — using fallback",
+                    raw.get("menuItemId", "?"),
+                )
+                results.append(
+                    _fallback_prediction(
+                        item_name=raw.get("name", raw.get("menuItemId", "unknown")),
+                        historical_sales=raw.get("historical_sales", []),
+                        menu_item_id=raw.get("menuItemId"),
+                    )
+                )
     except Exception as e:
         logger.exception("Forecast failed")
         raise HTTPException(status_code=500, detail=str(e))

@@ -127,7 +127,7 @@ export default function WastageHeatmap() {
                     <span className="ml-1 text-[10px] text-[var(--text-disabled)]">({ing.unit})</span>
                   </td>
                   {ing.days.map(function (day) {
-                    var cellColor = colorClass(day.wasteRate);
+                    const cellColor = colorClass(day.wasteRate);
                     return (
                       <td key={day.date} className="py-2 px-1 text-center">
                         {day.wasteRate !== null ? (

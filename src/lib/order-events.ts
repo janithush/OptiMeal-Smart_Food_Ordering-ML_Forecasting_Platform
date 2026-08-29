@@ -71,10 +71,10 @@ export function emitOrderStatusUpdate(
     timestamp: new Date().toISOString(),
   };
 
-  // Target the specific student's private room
+  // Target the specific student's private room only. There is no global
+  // broadcast on /student — the namespace is JWT-protected and each
+  // user has their own room, so emitting to the room is sufficient.
   io.of("/student").to(`user:${userId}`).emit("orderStatusChanged", payload);
-  // Also emit globally on /student for any listening clients
-  io.of("/student").emit("orderStatusChanged", payload);
 
   console.log(`[events] orderStatusChanged → user:${userId} | ${orderNumber} → ${status}`);
 }

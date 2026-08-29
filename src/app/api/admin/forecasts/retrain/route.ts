@@ -7,11 +7,11 @@ import { runWeeklyRetraining } from "@/lib/retrain-runner";
  * Admin-only. Runs the full retraining pipeline (gather → call ML → save logs → emit alerts).
  */
 export async function POST() {
-  var auth = await requireApiRole("ADMIN");
+  const auth = await requireApiRole("ADMIN");
   if (auth.error) return auth.error;
 
   try {
-    var result = await runWeeklyRetraining();
+    const result = await runWeeklyRetraining();
     return NextResponse.json({
       success: true,
       summary: {

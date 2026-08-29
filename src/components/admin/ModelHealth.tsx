@@ -19,12 +19,12 @@ interface ModelHealthRow {
 // ── Component ────────────────────────────────────────────────────
 
 export default function ModelHealth() {
-  var _useState1 = useState<ModelHealthRow[]>([]);
-  var models = _useState1[0];
-  var setModels = _useState1[1];
-  var _useState2 = useState(true);
-  var loading = _useState2[0];
-  var setLoading = _useState2[1];
+  const _useState1 = useState<ModelHealthRow[]>([]);
+  const models = _useState1[0];
+  const setModels = _useState1[1];
+  const _useState2 = useState(true);
+  const loading = _useState2[0];
+  const setLoading = _useState2[1];
 
   useEffect(function () {
     fetch("/api/admin/analytics/model-health")
@@ -76,9 +76,9 @@ export default function ModelHealth() {
           </thead>
           <tbody>
             {models.map(function (m) {
-              var statusIcon;
-              var statusText;
-              var statusColor;
+              let statusIcon;
+              let statusText;
+              let statusColor;
               if (m.rolledBack) {
                 statusIcon = <AlertTriangle className="w-3.5 h-3.5 inline" />;
                 statusText = "Rolled back";

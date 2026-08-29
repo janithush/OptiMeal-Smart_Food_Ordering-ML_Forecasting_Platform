@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import CookPlanClient from "./CookPlanClient";
 import { getTodayDate } from "@/lib/date-utils";
 
@@ -30,7 +30,11 @@ async function fetchInitialCookPlan(): Promise<{
     .map((c) => c.name + "=" + c.value)
     .join("; ");
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const requestHeaders = await headers();
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
+  const host = requestHeaders.get("host") ?? "localhost:3000";
+  const baseUrl = `${proto}://${host}`;
+
   const today = getTodayDate().toISOString().split("T")[0];
   const res = await fetch(baseUrl + "/api/admin/cook-plan?date=" + today, {
     headers: { Cookie: cookieHeader },

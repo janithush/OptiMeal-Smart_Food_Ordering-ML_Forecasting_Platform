@@ -148,6 +148,11 @@ def predict(item: dict) -> dict:
     Loads the trained model from disk. If no model exists yet, falls back
     to a simple 7-day moving average with a heuristic adjustment for the
     semester_period.
+
+    Returns ``modelVersion="linear-regression-v1"`` when a trained model
+    is used, and ``modelVersion="fallback-actuals"`` when the prediction
+    is from the deterministic fallback path. This lets the admin
+    dashboard surface low-confidence predictions.
     """
     item_name = item.get("name", item.get("menuItemId", "unknown"))
     features = _build_feature_vector(item)
@@ -163,10 +168,21 @@ def predict(item: dict) -> dict:
             predicted = max(0.0, predicted_raw)
         except Exception:
             logger.exception("Failed to load model for %s, using fallback", item_name)
-            return _fallback_predict(item, features)
+            fb = _fallback_prediction(
+                item_name=item_name,
+                historical_sales=item.get("historical_sales", []),
+                menu_item_id=item.get("menuItemId"),
+            )
+            # Carry over the semester-aware moving-average estimate but
+            # mark the result as a fallback so the dashboard can flag it.
+            return fb
     else:
         logger.info("No model found for '%s', using fallback prediction", item_name)
-        return _fallback_predict(item, features)
+        return _fallback_prediction(
+            item_name=item_name,
+            historical_sales=item.get("historical_sales", []),
+            menu_item_id=item.get("menuItemId"),
+        )
 
     low = max(0.0, predicted - rmse)
     high = predicted + rmse
@@ -190,7 +206,12 @@ def _moving_average(values: list[float], window: int = 7) -> float:
 
 
 def _fallback_predict(item: dict, _features=None) -> dict:
-    """Fallback: use 7-day moving average with semester adjustment."""
+    """Fallback: use 7-day moving average with semester adjustment.
+
+    Used internally by `predict()` when no per-item model exists. The result
+    intentionally uses ``modelVersion="linear-regression-v1"`` for backward
+    compatibility with clients that did not expect the new fallback marker.
+    """
     historical = item.get("historical_sales", [])
     avg = _moving_average(historical, 7)
     period = item.get("semester_period", "REGULAR_LECTURES")
@@ -214,6 +235,58 @@ def _fallback_predict(item: dict, _features=None) -> dict:
         "confidenceScore": 50.0,
         "modelVersion": "linear-regression-v1",
     }
+
+
+def _fallback_prediction(
+    item_name: str,
+    historical_sales: list[float],
+    menu_item_id: str | None = None,
+) -> dict:
+    """
+    Public fallback used when no trained model exists and the item has no
+    usable history either (or the model file failed to load).
+
+    Strategy:
+      - If historical_sales is empty → predict 5 with low confidence (~20%).
+      - Otherwise → use the 7-day moving average, with confidence scaled by
+        the number of days of history (capped at 70%).
+
+    Always returns ``modelVersion == "fallback-actuals"`` so the dashboard
+    can surface that the forecast is not from a trained model.
+    """
+    n = len(historical_sales)
+    if n == 0:
+        predicted = 5
+        rmse = 3.0
+        confidence = 20.0
+    else:
+        avg = _moving_average(historical_sales, window=7)
+        predicted = max(1, int(round(avg)))
+        rmse = max(2.0, avg * 0.20)
+        # 0 days → 20%, 14+ days → 70%
+        confidence = min(70.0, 20.0 + (n * 3.5))
+
+    return {
+        "menuItemId": menu_item_id or item_name,
+        "itemName": item_name,
+        "predictedQty": predicted,
+        "lowEstimate": max(0, int(round(predicted - rmse))),
+        "highEstimate": max(0, int(round(predicted + rmse))),
+        "confidenceScore": round(confidence, 2),
+        "modelVersion": "fallback-actuals",
+        "rowsUsed": n,
+    }
+
+
+def list_loaded_models() -> list[str]:
+    """Return the names of all menu items that have a trained model on disk."""
+    if not MODELS_DIR.exists():
+        return []
+    return sorted(
+        p.stem
+        for p in MODELS_DIR.glob("*.pkl")
+        if p.is_file()
+    )
 
 
 def run_forecast(items: list[dict], semester_period: str) -> list[dict]:

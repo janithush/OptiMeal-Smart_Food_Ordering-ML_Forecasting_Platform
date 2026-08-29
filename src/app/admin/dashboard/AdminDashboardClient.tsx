@@ -13,6 +13,7 @@ import SmartDiscountAlert from "@/components/admin/SmartDiscountAlert";
 import ActiveFlashDeals from "@/components/admin/ActiveFlashDeals";
 import FlashDealForm from "@/components/admin/FlashDealForm";
 import ProcurementAlertCard from "@/components/admin/ProcurementAlertCard";
+import MlHealthIndicator from "@/components/admin/MlHealthIndicator";
 import type { ProcurementAlertPayload } from "@/components/admin/ProcurementAlertCard";
 import type { SmartDiscountAlertPayload } from "@/lib/order-events";
 import { Zap, AlertTriangle, ShoppingBag, Check } from "lucide-react";
@@ -217,7 +218,8 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <MlHealthIndicator />
               <button
                 onClick={() => router.push("/admin/orders")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors"

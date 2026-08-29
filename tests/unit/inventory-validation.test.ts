@@ -3,61 +3,46 @@
  *
  * Story 7.1: Inventory Stock Entry & Forecasting View
  *
+ * IMPORTANT: All date math in these tests is performed in the
+ * **Asia/Colombo (UTC+5:30) timezone** because the production code
+ * (`validateStockDate`, `getTodayDate`, etc.) is strictly localized
+ * to Sri Lanka. Using raw `Date.UTC(...)` or `new Date().toISOString()`
+ * here would produce a date string that is *off by one* for ~5 hours
+ * of every day. See `tests/support/helpers/colombo-date.ts`.
+ *
  * Run: npx vitest run tests/unit/inventory-validation.test.ts
  */
 import { describe, it, expect } from "vitest";
 import { validateStockDate, validateStockAmounts } from "@/lib/inventory";
+import {
+  getColomboOffsetString,
+  getColomboTodayString,
+} from "../support/helpers/colombo-date";
 
 describe("validateStockDate", () => {
   it("rejects dates older than 1 day", () => {
-    // 3 days ago in UTC
-    const now = new Date();
-    const dateStr = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 3)
-    )
-      .toISOString()
-      .split("T")[0];
-
+    // 3 days ago in Colombo time
+    const dateStr = getColomboOffsetString(-3);
     const error = validateStockDate(dateStr);
     expect(error).toContain("backdated");
   });
 
   it("rejects future dates", () => {
-    // Tomorrow in UTC
-    const now = new Date();
-    const dateStr = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-    )
-      .toISOString()
-      .split("T")[0];
-
+    // Tomorrow in Colombo time
+    const dateStr = getColomboOffsetString(+1);
     const error = validateStockDate(dateStr);
     expect(error).toContain("future");
   });
 
   it("accepts today's date", () => {
-    // Today in UTC
-    const now = new Date();
-    const dateStr = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-    )
-      .toISOString()
-      .split("T")[0];
-
+    const dateStr = getColomboTodayString();
     const error = validateStockDate(dateStr);
     expect(error).toBeNull();
   });
 
   it("accepts yesterday's date (within 1 day)", () => {
-    // Use UTC to avoid timezone boundary issues
-    const now = new Date();
-    const yesterdayIso = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)
-    )
-      .toISOString()
-      .split("T")[0];
-
-    const error = validateStockDate(yesterdayIso);
+    const dateStr = getColomboOffsetString(-1);
+    const error = validateStockDate(dateStr);
     expect(error).toBeNull();
   });
 });

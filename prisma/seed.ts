@@ -23,7 +23,14 @@ dotenv.config({ path: resolve(".env.local") });
 import { PrismaClient, Department, DietaryPreference } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error(
+    "[seed] DATABASE_URL is not set. Copy .env.example to .env.local and configure it first."
+  );
+}
+
+const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter, log: ["error"] });
 
 // ─── CSV Parser ───────────────────────────────────────────────────

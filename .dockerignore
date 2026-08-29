@@ -1,0 +1,47 @@
+# Node
+node_modules/
+.next/
+.next-dev/
+out/
+dist/
+
+# Python
+ml-service/.venv/
+ml-service/__pycache__/
+ml-service/**/__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts
+coverage/
+playwright-report/
+test-results/
+screenshots/
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# AI / BMAD artifacts
+_bmad/
+_bmad-output/
+.agent/
+.agents/
+.claude/
+.windsurf/
+.venv/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# OS
+.DS_Store
+Thumbs.db

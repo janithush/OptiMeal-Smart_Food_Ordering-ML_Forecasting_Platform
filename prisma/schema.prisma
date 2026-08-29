@@ -136,6 +136,8 @@ model WalletAccount {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   transactions WalletTransaction[]
+
+  @@index([userId])
 }
 
 model WalletTransaction {
@@ -288,12 +290,13 @@ model GroupOrder {
 model GroupOrderParticipant {
   id           String     @id @default(uuid())
   groupOrderId String
-  groupOrder   GroupOrder @relation(fields: [groupOrderId], references: [id])
+  groupOrder   GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
   studentId    String
-  student      User       @relation(fields: [studentId], references: [id])
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   joinedAt     DateTime   @default(now())
 
   @@unique([groupOrderId, studentId])
+  @@index([studentId])
 }
 
 model GroupOrderCartItem {
@@ -301,13 +304,14 @@ model GroupOrderCartItem {
   groupOrderId  String
   groupOrder    GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
   participantId String
-  participant   User       @relation(fields: [participantId], references: [id])
+  participant   User       @relation(fields: [participantId], references: [id], onDelete: Cascade)
   menuItemId    String
   menuItem      MenuItem   @relation(fields: [menuItemId], references: [id])
   quantity      Int
   addedAt       DateTime   @default(now())
 
   @@unique([groupOrderId, participantId, menuItemId])
+  @@index([participantId])
 }
 
 // ─── Inventory ────────────────────────────────────────────────────
@@ -373,6 +377,7 @@ model DemandForecast {
   generatedAt     DateTime @default(now())
 
   @@unique([date, menuItemId])
+  @@index([date])
 }
 
 model CookPlanItem {

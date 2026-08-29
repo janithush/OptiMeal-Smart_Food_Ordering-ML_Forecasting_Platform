@@ -2,11 +2,18 @@
   "name": "cafesmart",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0",
+    "python": ">=3.11"
+  },
   "scripts": {
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -17,7 +24,13 @@
     "test:all": "vitest run && playwright test",
     "ml:setup": "cd ml-service && python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt",
     "ml:dev": "cd ml-service && .venv\\Scripts\\uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "ml:test": "cd ml-service && .venv\\Scripts\\python.exe -m pytest",
+    "ml:install": "cd ml-service && .venv\\Scripts\\python.exe -m pip install -r requirements.txt",
     "db:seed": "tsx prisma/seed.ts",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -66,3 +79,4 @@
     "vitest": "^4.1.10"
   }
 }
+

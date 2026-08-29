@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CaféSmart — git attributes
+# ─────────────────────────────────────────────────────────────────────────────
+# Ensures that shell scripts and Dockerfiles are ALWAYS stored and
+# checked out with LF line endings, regardless of the developer's OS.
+#
+# Without this, a developer on Windows who opens a shell script in
+# an editor that re-saves with CRLF can break the POSIX shebang line
+# and cause errors like:
+#   "exec /usr/local/bin/docker-entrypoint.sh: no such file or directory"
+# (the kernel tries to exec `/bin/sh\r`, which doesn't exist).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Auto-detect text files; force LF for shell scripts & Dockerfiles.
+*               text=auto
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+*.dockerfile     text eol=lf
+*.ps1           text eol=crlf
+
+# Binary files (never touched)
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+*.pkl           binary
+*.pdf           binary
+
+# Source code (auto-detect; git will normalize)
+*.ts            text
+*.tsx           text
+*.js            text
+*.jsx           text
+*.css           text
+*.scss          text
+*.json          text
+*.md            text
+*.yml           text
+*.yaml          text
+*.py            text
+*.sql           text
+*.prisma        text

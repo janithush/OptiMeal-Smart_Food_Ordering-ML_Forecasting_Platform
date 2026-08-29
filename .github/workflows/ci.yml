@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs when a new commit is pushed to the same PR/branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # 1. Lint, type-check, and unit-test the Next.js application.
+  # ──────────────────────────────────────────────────────────────────
+  test-nextjs:
+    name: Next.js (lint + typecheck + unit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cafesmart_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cafesmart_test
+      AUTH_SECRET: test-secret-do-not-use-in-production-min-32-chars
+      AUTH_GOOGLE_ID: test-google-id
+      AUTH_GOOGLE_SECRET: test-google-secret
+      NEXTAUTH_SECRET: test-secret-do-not-use-in-production-min-32-chars
+      NEXTAUTH_URL: http://localhost:3000
+      ML_SERVICE_URL: http://127.0.0.1:8000
+      PAYHERE_MERCHANT_ID: "1211111"
+      PAYHERE_MERCHANT_SECRET: "TEST-SECRET-1234567890"
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations to test database
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cafesmart_test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────
+  # 2. Build the Next.js application (catches SSR/RSC compile errors).
+  # ──────────────────────────────────────────────────────────────────
+  build-nextjs:
+    name: Next.js production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: test-nextjs
+
+    env:
+      AUTH_SECRET: test-secret-do-not-use-in-production-min-32-chars
+      AUTH_GOOGLE_ID: test-google-id
+      AUTH_GOOGLE_SECRET: test-google-secret
+      NEXTAUTH_SECRET: test-secret-do-not-use-in-production-min-32-chars
+      NEXTAUTH_URL: http://localhost:3000
+      ML_SERVICE_URL: http://127.0.0.1:8000
+      PAYHERE_MERCHANT_ID: "1211111"
+      PAYHERE_MERCHANT_SECRET: "TEST-SECRET-1234567890"
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cafesmart_test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Production build
+        run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────
+  # 3. Test the FastAPI ML microservice.
+  # ──────────────────────────────────────────────────────────────────
+  test-ml:
+    name: ML service (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: ml-service/requirements.txt
+
+      - name: Install Python dependencies
+        working-directory: ml-service
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        working-directory: ml-service
+        run: |
+          . .venv/bin/activate
+          python -m pytest --junitxml=pytest-junit.xml
+      - name: Upload pytest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-pytest-results
+          path: ml-service/pytest-junit.xml
+          retention-days: 7

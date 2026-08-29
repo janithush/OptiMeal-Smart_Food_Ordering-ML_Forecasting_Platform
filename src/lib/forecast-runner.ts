@@ -273,7 +273,7 @@ export async function runNightlyForecast(): Promise<ForecastResult> {
 
   // 3. Call ML service (or fallback)
   let forecasts;
-  let fallbackUsed = false;
+  const fallbackUsed = false;
   try {
     forecasts = await callMLForecast(payload);
     console.log(`[forecast] ML service returned ${forecasts.length} predictions`);

@@ -99,6 +99,8 @@ graph TD
 
 This project is optimized for local development and testing. You will need to run both the Next.js application and the Python ML Microservice concurrently.
 
+**Prerequisites:** Node.js ≥ 20, npm ≥ 10, Python ≥ 3.11, PostgreSQL ≥ 14.
+
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/yourusername/Cafesmart-System.git
@@ -107,14 +109,16 @@ cd Cafesmart-System
 
 ### 2. Setup the Next.js Application
 ```bash
-# Install dependencies
+# Install dependencies (also runs `prisma generate` via postinstall)
 npm install
 
-# Setup Prisma and push the schema to your local/Supabase database
-npx prisma generate
+# For LOCAL development: push the schema directly to the database
 npx prisma db push
 
-# Start the development server
+# For PRODUCTION deployments: use the committed baseline migration
+npx prisma migrate deploy
+
+# Start the development server (boots Next.js + Socket.io + ML schedulers)
 npm run dev
 ```
 The Next.js app will run on `http://localhost:3000`.
@@ -125,17 +129,109 @@ Open a **new terminal window**:
 # Navigate to the ML service directory
 cd ml-service
 
-# Create a virtual environment (optional but recommended)
+# Create a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
 
-# Install requirements
+# Install requirements (now includes pytest + httpx for testing)
 pip install -r requirements.txt
 
 # Run the FastAPI server
 uvicorn main:app --reload
+
+# Run the ML test suite (optional, requires dev install)
+pytest
 ```
-The ML API will run on `[http://127.0.0.1:8000](http://127.0.0.1:8000)`.
+The ML API will run on `http://127.0.0.1:8000`.
+
+## 🧪 Running Tests
+
+```bash
+# Vitest unit + component tests
+npm test
+
+# With coverage
+npm run test:coverage
+
+# Watch mode
+npm run test:watch
+
+# ML service tests
+npm run ml:test
+
+# Playwright E2E (requires the dev server running)
+npm run test:e2e
+
+# All tests (Vitest + Playwright)
+npm run test:all
+```
+
+## 🐳 Docker
+
+A multi-stage `Dockerfile` is provided for production deployments.
+
+### Quick start (recommended)
+
+```bash
+# 1. Bootstrap a `.env` file (copies .env.example, generates AUTH_SECRET,
+#    prompts for the few secrets you must fill in by hand)
+./scripts/init-env.sh        # Linux/macOS
+.\scripts\init-env.ps1        # Windows PowerShell
+
+# 2. Build the image (the bootstrap script can do this for you)
+docker build -t cafesmart:latest .
+
+# 3. Run the container, loading secrets from the .env file you just made
+docker run --rm -p 3000:3000 -p 8000:8000 --env-file .env cafesmart:latest
+```
+
+### Manual start
+
+If you already have a `.env` file with all the required vars:
+
+```bash
+docker build -t cafesmart:latest .
+docker run --rm -p 3000:3000 -p 8000:8000 --env-file .env cafesmart:latest
+```
+
+### Passing env vars inline (no .env file)
+
+```bash
+docker run --rm -p 3000:3000 -p 8000:8000 \
+  -e DATABASE_URL=postgresql://user:pass@db:5432/cafesmart \
+  -e AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))") \
+  -e AUTH_GOOGLE_ID=... -e AUTH_GOOGLE_SECRET=... \
+  -e PAYHERE_MERCHANT_ID=... -e PAYHERE_MERCHANT_SECRET=... \
+  -e NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
+  -e ML_SERVICE_URL=http://127.0.0.1:8000 \
+  cafesmart:latest
+```
+
+> **The container's `docker-entrypoint.sh` validates all required env vars
+> before booting and prints a clear red error message if anything is missing
+> or invalid — so a misconfiguration fails fast instead of producing silent
+> 500s from Prisma.**
+
+## 🩺 Troubleshooting
+
+If the build or container fails, see **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**
+for the 8 most common issues (Docker engine not running, missing
+`.env`, CRLF line endings in shell scripts, `PrismaClientInitializationError`,
+etc.) with copy-paste fixes.
+
+The most common "gotcha" is **`docker build` failing with `got SIGTERM/SIGINT`**
+— that's a Docker Desktop issue (the engine isn't running or the
+WSL2 backend is broken), **not** a CaféSmart code issue. The
+troubleshooting guide has a copy-paste fix.
+
+## ⚙️ CI/CD
+
+GitHub Actions workflows are in `.github/workflows/`:
+
+- `ci.yml` — Lint, typecheck, unit tests, production build, ML pytest
+- `docker.yml` — Build & push Docker image to `ghcr.io`
+
+Both run automatically on every push to `main` and on every PR.
 
 ---
 

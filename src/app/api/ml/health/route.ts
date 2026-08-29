@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
  * never communicates with the ML service directly.
  *
  * Returns:
- *   200 — { "status": "ok" } when ML service is reachable
+ *   200 — { "status": "ok", "models": [...], "models_loaded": N } when reachable
  *   500 — { "status": "error", "message": "..." } when ML_SERVICE_URL is not configured
  *   503 — { "status": "error", "message": "..." } when ML service is unreachable
  */
@@ -24,6 +24,8 @@ export async function GET() {
 
   try {
     const response = await fetch(`${mlServiceUrl}/health`, {
+      // Always bypass Next's data cache for a health probe.
+      cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
 

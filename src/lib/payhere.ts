@@ -103,6 +103,92 @@ export function verifyPayHereWebhookSignature(
 }
 
 /**
+ * Compute the PayHere webhook HMAC locally. Useful for tests and for
+ * re-validating an incoming callback against the raw form body (which
+ * is what PayHere actually signs).
+ *
+ * PayHere signs the body as:
+ *   MD5( merchant_id + order_id + payhere_amount + payhere_currency
+ *        + status_code + MD5(merchant_secret).upper() ).upper()
+ *
+ * IMPORTANT: The hash is over the raw form-encoded values, NOT over a
+ * re-serialised JS object. The webhook handler MUST call this with the
+ * values exactly as they appear in the POST body.
+ */
+export function computePayHereWebhookSignature(
+  merchantId: string,
+  merchantSecret: string,
+  orderId: string,
+  amount: string,
+  currency: string,
+  statusCode: string
+): string {
+  const secretHash = crypto.createHash("md5").update(merchantSecret).digest("hex").toUpperCase();
+  const data = merchantId + orderId + amount + currency + statusCode + secretHash;
+  return crypto.createHash("md5").update(data).digest("hex").toUpperCase();
+}
+
+/**
+ * Verify a PayHere webhook by recomputing the HMAC over the supplied
+ * values. The caller is expected to have parsed `merchant_id`,
+ * `order_id`, `payhere_amount`, `payhere_currency`, `status_code`, and
+ * `md5sig` directly from the raw form body — NOT from a re-serialised
+ * representation, which can alter the canonical string and cause a
+ * mismatch.
+ */
+export function verifyPayHereWebhookRaw(
+  merchantId: string,
+  orderId: string,
+  payhereAmount: string,
+  payhereCurrency: string,
+  statusCode: string,
+  receivedHash: string
+): boolean {
+  const secret = getMerchantSecret();
+  if (!secret) return false;
+  const computed = computePayHereWebhookSignature(
+    merchantId,
+    secret,
+    orderId,
+    payhereAmount,
+    payhereCurrency,
+    statusCode
+  );
+  // Constant-time comparison to avoid timing leaks on the signature.
+  if (computed.length !== receivedHash.length) return false;
+  return crypto.timingSafeEqual(
+    Buffer.from(computed, "utf8"),
+    Buffer.from(receivedHash.toUpperCase(), "utf8")
+  );
+}
+
+/**
+ * Parse an `application/x-www-form-urlencoded` body string into a
+ * `Record<string, string>` without using the Web `URLSearchParams` class,
+ * so it works in both Node and Edge runtimes and preserves values byte
+ * for byte (decoded exactly once).
+ */
+export function parseFormUrlEncoded(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw) return out;
+  for (const segment of raw.split("&")) {
+    if (!segment) continue;
+    const eq = segment.indexOf("=");
+    const rawKey = eq === -1 ? segment : segment.slice(0, eq);
+    const rawVal = eq === -1 ? "" : segment.slice(eq + 1);
+    try {
+      out[decodeURIComponent(rawKey.replace(/\+/g, " "))] = decodeURIComponent(
+        rawVal.replace(/\+/g, " ")
+      );
+    } catch {
+      // Skip malformed segments — PayHere will never send one, so this
+      // only triggers on corrupted bodies.
+    }
+  }
+  return out;
+}
+
+/**
  * Extract userId from a PayHere order_id of format CAF-TOPUP-{userId}-{timestamp}
  */
 export function extractUserIdFromOrderId(orderId: string): string | null {
