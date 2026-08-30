@@ -65,6 +65,13 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Verify migration topological order
+        # Belt-and-suspenders: catches FK ordering bugs before they hit
+        # `prisma migrate deploy` in CI. Catches issues like the
+        # "OrderItem references Order" bug that previously caused a
+        # P3018 / 42P01 in the migration step.
+        run: node scripts/check-migration-order.mjs
+
       - name: Compute migration checksums (for production rollout)
         id: migration-checksums
         run: |
