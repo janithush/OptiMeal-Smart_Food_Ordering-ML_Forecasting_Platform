@@ -105,6 +105,107 @@ def test_health_lists_loaded_models(client):
         assert isinstance(body["models"], list)
 
 
+def test_forecast_confidence_is_clamped_into_band(client):
+    """Regression: ``predict()`` previously returned ``confidenceScore=100.0``
+    whenever the trained model had R²≈1 (e.g. perfectly-overfit synthetic
+    data). The honest fix clamps the score into [20, 95] so the dashboard
+    can never see a literal "100% confident" or a negative score.
+
+    We exercise this by hitting /forecast with a real trained model on disk
+    (Kottu or whatever exists in ``models/``) and asserting the response
+    value lies in the band.
+    """
+    from forecaster import MODELS_DIR, list_loaded_models
+
+    if not MODELS_DIR.exists():
+        pytest.skip("models/ directory missing")
+    trained = [m for m in list_loaded_models() if (MODELS_DIR / f"{m}.pkl").exists()]
+    if not trained:
+        pytest.skip("No trained model artifacts available")
+
+    payload = {
+        "date": "2026-08-30",
+        "semester_period": "REGULAR_LECTURES",
+        "items": [
+            {
+                "menuItemId": trained[0],
+                "name": trained[0],
+                "historical_sales": [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36],
+                "pre_order_count": 5,
+                "day_of_week": 1,
+                "is_weekend": False,
+                "days_since_launch": 100,
+                "rolling_7d_avg": 22.0,
+                "rolling_14d_avg": 20.0,
+            }
+        ],
+    }
+    r = client.post("/forecast", json=payload)
+    assert r.status_code == 200
+    fc = r.json()["forecasts"][0]
+    assert fc["modelVersion"] == "linear-regression-v1"
+    assert 20.0 <= fc["confidenceScore"] <= 95.0, (
+        f"confidenceScore={fc['confidenceScore']} outside honest band [20, 95]. "
+        "This typically means _confidence_from_r2 was bypassed or removed."
+    )
+
+
+def test_train_with_insufficient_data_returns_honest_skip(client, tmp_path):
+    """Regression: ``retrain_model()`` previously short-circuited with
+    ``mae=0.0, r2=0.0, modelVersion='linear-regression-v1'`` whenever
+    there were fewer than 9 days of history. That falsely reported a
+    perfect retrain. The honest fix:
+
+      * returns ``modelVersion='insufficient-data'``
+      * sets ``skipped=True`` and ``reason='insufficient_data'``
+      * does NOT overwrite any existing .pkl on disk
+    """
+    from forecaster import MODELS_DIR
+
+    # Snapshot every existing .pkl mtime so we can verify the model file
+    # is NOT touched by the short-circuit path.
+    snapshots = {}
+    if MODELS_DIR.exists():
+        for pkl in MODELS_DIR.glob("*.pkl"):
+            snapshots[pkl.name] = pkl.stat().st_mtime_ns
+
+    payload = {
+        "semester_period": "REGULAR_LECTURES",
+        "items": [
+            {
+                "menuItemId": "honest-skip-test-item",
+                "name": "Honest Skip Test Item",
+                # Only 3 rows — guaranteed insufficient.
+                "historical_sales": [5, 6, 7],
+            }
+        ],
+    }
+    r = client.post("/train", json=payload)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    result = body["results"][0]
+    assert result["skipped"] is True
+    assert result["reason"] == "insufficient_data"
+    assert result["modelVersion"] == "insufficient-data"
+    assert result["rowsUsed"] == 3
+    # Specifically NOT the trained-model marker.
+    assert result["modelVersion"] != "linear-regression-v1"
+    # And the model file must NOT have been written.
+    new_model_path = MODELS_DIR / "Honest Skip Test Item.pkl"
+    assert not new_model_path.exists(), (
+        f"retrain_model() wrote {new_model_path} despite short-circuit; "
+        "the honest-skip contract was violated."
+    )
+
+    # Pre-existing models must remain byte-identical (mtime unchanged).
+    if MODELS_DIR.exists():
+        for pkl in MODELS_DIR.glob("*.pkl"):
+            if pkl.name in snapshots:
+                assert pkl.stat().st_mtime_ns == snapshots[pkl.name], (
+                    f"Pre-existing model {pkl.name} was modified during a skip."
+                )
+
+
 def test_forecast_uses_trained_model_when_history_available(client):
     """Regression: previously the /forecast endpoint raised
     ``ValueError: X has 10 features, but StandardScaler is expecting 17

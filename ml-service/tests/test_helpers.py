@@ -11,6 +11,7 @@ from forecaster import (
     _safe_int,
     _safe_float,
     _one_hot_semester,
+    _confidence_from_r2,
     SEMESTER_PERIODS,
     FEATURE_COUNT,
     LOOKBACK,
@@ -195,3 +196,59 @@ class TestBuildFullFeatureVector:
         X = _build_full_feature_vector(item)
         assert X.shape == (1, 17)
         assert list(X[0, :7]) == [5, 6, 7, 8, 9, 10, 11]
+
+
+class TestConfidenceFromR2:
+    """Coverage for the honest-confidence-score fix.
+
+    Regression target: a previous version of ``predict()`` set
+    ``confidence = min(r2 * 100, 100.0)``, which produced:
+
+      * 100.0 confidence on a perfectly-overfit synthetic model (production
+        observation on ``Kottu.pkl`` had R²=1.0).
+      * 0.0 / negative confidence on a model worse than baseline mean
+        (negative R² is legal but meaningless as a "confidence" score).
+      * Crashes on a NaN R² from a corrupt .pkl artifact.
+
+    The new mapping is bounded in [20.0, 95.0] and tolerant of NaN /
+    non-numeric inputs.
+    """
+
+    def test_perfect_r2_does_not_exceed_ceiling(self):
+        # R²=1.0 must NOT round to 100% — that implies a perfect model
+        # and is rarely true in production.
+        score = _confidence_from_r2(1.0)
+        assert score <= 95.0
+        assert score >= 90.0  # near-ceiling, not punished
+
+    def test_zero_r2_floors_at_minimum(self):
+        score = _confidence_from_r2(0.0)
+        assert score == pytest.approx(20.0)
+
+    def test_negative_r2_floors_at_minimum(self):
+        # A model worse than the baseline mean is legal but should NOT
+        # produce a negative or zero confidence score.
+        assert _confidence_from_r2(-0.5) == pytest.approx(20.0)
+        assert _confidence_from_r2(-100.0) == pytest.approx(20.0)
+
+    def test_moderate_r2_scales_linearly(self):
+        # R²=0.5 should land somewhere in the middle of [20, 95].
+        score = _confidence_from_r2(0.5)
+        assert 40.0 < score < 70.0
+
+    def test_nan_r2_returns_uncertain_default(self):
+        # NaN must not crash and must return an "investigate me" value.
+        score = _confidence_from_r2(float("nan"))
+        assert score == pytest.approx(50.0)
+
+    def test_non_numeric_input_returns_uncertain_default(self):
+        assert _confidence_from_r2(None) == pytest.approx(50.0)
+        assert _confidence_from_r2("not-a-number") == pytest.approx(50.0)
+        assert _confidence_from_r2([1, 2]) == pytest.approx(50.0)
+
+    def test_score_is_always_in_band(self):
+        # Property-style: for a wide range of inputs, the score must
+        # always land in [20.0, 95.0].
+        for r2 in [-1.0, -0.1, 0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 100.0]:
+            score = _confidence_from_r2(r2)
+            assert 20.0 <= score <= 95.0, f"r2={r2} produced score={score}"

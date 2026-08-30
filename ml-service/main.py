@@ -140,6 +140,13 @@ class RetrainResult(BaseModel):
     rolledBack: bool
     modelVersion: str
     rollbackReason: str | None = None
+    # New fields (Story 7.6 honest-metrics fix). Both default to None /
+    # False so existing API consumers deserialising the response do not
+    # need to be updated. When a retrain is skipped due to insufficient
+    # data, ``modelVersion`` will be ``"insufficient-data"`` and these
+    # fields will be populated.
+    skipped: bool = False
+    reason: str | None = None
 
 
 class RetrainResponse(BaseModel):
