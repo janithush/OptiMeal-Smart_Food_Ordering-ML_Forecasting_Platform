@@ -24,3 +24,5 @@ __pycache__/
 *.pyc
 *.pyo
 ml-service/.venv/
+.vercel
+.env*
