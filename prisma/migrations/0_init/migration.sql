@@ -14,20 +14,28 @@
 -- that holds a FOREIGN KEY to it. The CREATE TABLE statements below are
 -- therefore ordered topologically by their foreign-key dependencies:
 --
---   Level 0 (no FKs):       User, MenuItem, Ingredient, PickupSlot,
---                           AcademicCalendar, TrainingLog, QueueTimeRecord,
---                           VerificationToken, FlashDeal
---   Level 1 (depend on L0): Account, WalletAccount, CoinBatch,
---                           MenuItemIngredient, InventoryRecord,
---                           DailySpecial, DemandForecast, CookPlanItem,
---                           ProcurementAlert, GroupOrder
---   Level 2 (depend on L1): WalletTransaction, OrderItem,
---                           GroupOrderParticipant, GroupOrderCartItem
---   Level 3 (depend on L2): Order
+--   Level 0 (no FKs):                  User, MenuItem, Ingredient,
+--                                      PickupSlot, AcademicCalendar,
+--                                      TrainingLog, QueueTimeRecord,
+--                                      VerificationToken, FlashDeal
+--   Level 1 (depend on L0):            Account, WalletAccount, CoinBatch,
+--                                      MenuItemIngredient, InventoryRecord,
+--                                      DailySpecial, DemandForecast,
+--                                      CookPlanItem, ProcurementAlert,
+--                                      GroupOrder
+--   Level 2 (depend on L1):            WalletTransaction,
+--                                      GroupOrderParticipant,
+--                                      GroupOrderCartItem
+--   Level 3 (depend on L2 or L3):      Order, OrderItem
+--
+-- Note: OrderItem is at Level 3, not Level 2, because it has a FK to
+-- Order (which itself is at Level 3). The previous version of this file
+-- had OrderItem at Level 2, which caused a `relation "Order" does not
+-- exist` error during `prisma migrate deploy`.
 --
 -- Do NOT reorder these statements without re-validating the FK graph.
--- The CI job `verify-migration-order` enforces this by re-running
--- `prisma migrate diff` against an empty database and comparing.
+-- The CI job has a "Compute migration checksums" step that lets us
+-- detect any drift in the file's checksum.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── Enums ─────────────────────────────────────────────────────────────────
@@ -298,18 +306,6 @@ CREATE TABLE "WalletTransaction" (
     "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- ─── Order Items (line items within an order) ──────────────────────────
-CREATE TABLE "OrderItem" (
-    "id"         TEXT PRIMARY KEY,
-    "orderId"    TEXT NOT NULL REFERENCES "Order"("id"),
-    "menuItemId" TEXT NOT NULL REFERENCES "MenuItem"("id"),
-    "quantity"   INTEGER NOT NULL,
-    "unitPrice"  DECIMAL(8,2) NOT NULL,
-    "subtotal"   DECIMAL(10,2) NOT NULL
-);
-CREATE INDEX "OrderItem_orderId_idx"    ON "OrderItem"("orderId");
-CREATE INDEX "OrderItem_menuItemId_idx" ON "OrderItem"("menuItemId");
-
 -- ─── Group Order Participants ──────────────────────────────────────────
 CREATE TABLE "GroupOrderParticipant" (
     "id"           TEXT PRIMARY KEY,
@@ -332,7 +328,7 @@ CREATE TABLE "GroupOrderCartItem" (
 );
 CREATE INDEX "GroupOrderCartItem_participantId_idx" ON "GroupOrderCartItem"("participantId");
 
--- ── Level 3: tables that depend on Level 2 ─────────────────────────────
+-- ── Level 3: tables that depend on Level 2 or Level 3 ─────────────────
 
 -- ─── Orders ──────────────────────────────────────────────────────────────
 CREATE TABLE "Order" (
@@ -356,3 +352,19 @@ CREATE INDEX "Order_status_idx"         ON "Order"("status");
 CREATE INDEX "Order_createdAt_idx"      ON "Order"("createdAt");
 CREATE INDEX "Order_studentId_idx"      ON "Order"("studentId");
 CREATE INDEX "Order_type_createdAt_idx" ON "Order"("type","createdAt");
+
+-- ─── Order Items (line items within an order) ──────────────────────────
+-- OrderItem is at Level 3, not Level 2, because it references "Order"
+-- (which is also at Level 3). The previous version of this file had
+-- OrderItem at Level 2, which caused a `42P01: relation "Order" does
+-- not exist` error in CI.
+CREATE TABLE "OrderItem" (
+    "id"         TEXT PRIMARY KEY,
+    "orderId"    TEXT NOT NULL REFERENCES "Order"("id"),
+    "menuItemId" TEXT NOT NULL REFERENCES "MenuItem"("id"),
+    "quantity"   INTEGER NOT NULL,
+    "unitPrice"  DECIMAL(8,2) NOT NULL,
+    "subtotal"   DECIMAL(10,2) NOT NULL
+);
+CREATE INDEX "OrderItem_orderId_idx"    ON "OrderItem"("orderId");
+CREATE INDEX "OrderItem_menuItemId_idx" ON "OrderItem"("menuItemId");
