@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/post-cutoff-cook-plan",
+      "schedule": "35 3 * * *"
+    },
+    {
+      "path": "/api/cron/smart-discount-check",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/nightly-forecast",
+      "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-retrain",
+      "schedule": "30 20 * * 6"
+    }
+  ]
+}

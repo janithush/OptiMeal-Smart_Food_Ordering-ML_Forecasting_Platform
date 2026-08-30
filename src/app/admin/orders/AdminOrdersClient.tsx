@@ -51,13 +51,23 @@ export default function AdminOrdersClient({ userName }: Props) {
     } catch { /* ignore */ }
   }, [activeSlot]);
 
+  // Initial fetch (in async IIFE so setLoading sits behind an `await`).
   useEffect(() => {
-    fetchQueue().finally(() => setLoading(false));
+    (async () => {
+      await fetchQueue();
+      setLoading(false);
+    })();
+    // fetchQueue is intentionally omitted from deps — it depends on
+    // `activeSlot` and we only want this to run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Poll for updates every 5s
+  // Poll for updates every 5s — re-runs when fetchQueue's identity changes
+  // (i.e. when activeSlot flips), which is the desired behavior.
   useEffect(() => {
-    const interval = setInterval(fetchQueue, 5000);
+    const interval = setInterval(() => {
+      fetchQueue();
+    }, 5000);
     return () => clearInterval(interval);
   }, [fetchQueue]);
 
@@ -186,12 +196,14 @@ export default function AdminOrdersClient({ userName }: Props) {
         )}
       </div>
 
-      {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleQRScan}
-      />
+      {/* QR Scanner Modal — conditionally mounted so it remounts fresh on each open,
+          letting the child reset its own state without a setState-in-effect. */}
+      {scannerOpen && (
+        <QRScanner
+          onClose={() => setScannerOpen(false)}
+          onScan={handleQRScan}
+        />
+      )}
     </div>
   );
 }
