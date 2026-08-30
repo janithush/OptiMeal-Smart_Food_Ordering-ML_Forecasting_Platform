@@ -3,6 +3,81 @@
 All notable changes to the CaféSmart project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] — Vercel Cron Schedulers (2026-08-30)
+
+### 🐛 Bug fix
+- **Schedulers don't run in production** (Bug #1 from live-bug-audit).
+  `server.ts` has 4 background schedulers (smart discount 12:30 PM,
+  nightly ML forecast 18:00, post-cutoff cook plan 09:05, weekly
+  retraining Sunday 02:00) implemented as `setInterval` loops. Vercel's
+  serverless runtime does not support long-lived background processes,
+  so none of these ever ran in production. The 13-day-old
+  `DemandForecast.generatedAt` was the symptom. Fix: move all 4
+  schedulers to **Vercel Cron Jobs**, with each cron calling an HTTP
+  endpoint that runs the existing function.
+
+### ✨ New
+- `src/lib/cron-auth.ts` — shared `CRON_SECRET` verifier
+  (constant-time string compare, supports `Authorization: Bearer` and
+  `x-cron-secret` headers).
+- `src/app/api/cron/nightly-forecast/route.ts` — calls
+  `runNightlyForecast()` at 12:30 UTC (18:00 Sri Lanka).
+- `src/app/api/cron/post-cutoff-cook-plan/route.ts` — calls
+  `runPostCutoffUpdate()` at 03:35 UTC (09:05 Sri Lanka).
+- `src/app/api/cron/smart-discount-check/route.ts` — runs the 30%
+  threshold check at 07:00 UTC (12:30 Sri Lanka). Uses
+  `getTodayDate()` from `@/lib/date-utils` for the canteen day
+  boundary.
+- `src/app/api/cron/weekly-retrain/route.ts` — calls
+  `runWeeklyRetraining()` at 20:30 UTC Saturday (02:00 Sri Lanka
+  Sunday).
+- `vercel.json` — declares the 4 cron schedules.
+
+### 🐛 Bug fix
+- **PayHere webhook returns 500 for unknown user** (Bug #3 from
+  live-bug-audit). When a PayHere webhook with a valid HMAC
+  signature referenced a non-existent userId, the Prisma upsert threw
+  a P2003 foreign-key violation that propagated as HTTP 500. PayHere
+  retries 5xx errors for up to 24 hours, so a single bad orderId
+  generated dozens of identical 500s. Fix: pre-flight
+  user-existence check inside the transaction + map both
+  `USER_NOT_FOUND` and defensive `P2003` to HTTP 400 (no retry).
+
+### 🐛 Bug fix
+- **4 missing database indexes** (Bug #2 from live-bug-audit). The
+  Phase 1 single-column `@@index` directives on
+  `DemandForecast.date`, `WalletAccount.userId`,
+  `GroupOrderParticipant.studentId`, and
+  `GroupOrderCartItem.participantId` were declared in the schema
+  but never applied to the live database (originally created via
+  `prisma db push`). Fix: created the indexes directly, added
+  `1_add_missing_indexes` migration, recorded in `_prisma_migrations`.
+
+### 🔐 Security
+- **Row Level Security lockdown on Supabase.** The live database had
+  RLS disabled on 24 tables, exposing every user record, wallet, and
+  order to anyone with the project's `anon` key (which would be in
+  the browser bundle if the app used the Supabase JS client — it
+  doesn't, but defense in depth). Enabled RLS on all 24 tables,
+  created 19 policies matching the actual access patterns (anon
+  read-only on public menu data, authenticated role-scoped reads
+  on user-owned data, full access only for the `postgres` role which
+  Prisma uses and has BYPASSRLS), and resolved the Supabase advisor
+  warning.
+
+### 🛠 Required env var
+- `CRON_SECRET` (new) — set in Vercel project env vars. Different
+  from `AUTH_SECRET`. Vercel sends it in the `Authorization: Bearer
+  <secret>` header on every cron call.
+
+### 📊 Test results
+- All 80 Vitest unit tests pass.
+- All 26 ML pytest tests pass.
+- Live deployment verified: Vercel → Supabase connectivity works,
+  NextAuth configured correctly, all 7 ML models loaded.
+
+---
+
 ## [Unreleased] — Phase 2 → 4 Polish Pass (2026-08-29)
 
 ### 🔐 Security
@@ -113,119 +188,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — Troubleshooting Guide (2026-08-30)
-
-### ✨ New
-- **`docs/TROUBLESHOOTING.md`** — field guide for the 8 most common
-  CaféSmart build / run issues, with copy-paste fixes and diagnostic
-  steps. Covers: Docker engine not running, missing `.env`, CRLF
-  line endings in shell scripts, `PrismaClientInitializationError`,
-  missing Prisma schema in Dockerfile, `EBADENGINE` warnings on Node
-  20, `next.config.ts` rejecting `eslint` key, and Playwright
-  browser-not-installed.
-- **`README.md` Troubleshooting section** — links to the guide and
-  flags the most common "gotcha" (`docker build` failing with `got
-  SIGTERM/SIGINT` — that's a Docker Desktop issue, not a code issue).
-
-### 📝 Notes
-- The current `docker build` failure with `got SIGTERM/SIGINT` is a
-  host-level Docker Desktop issue: the Windows named pipe
-  `//./pipe/dockerDesktopLinuxEngine` exists but the engine isn't
-  listening on it. Fix it with the steps in
-  `docs/TROUBLESHOOTING.md §1` (force-quit Docker Desktop, restart,
-  poll for engine, restart WSL2 if needed). No code change is
-  required.
-
----
-
-## [Unreleased] — Line Ending Fix (2026-08-30)
-
-### 🐛 Build fix
-- **Container crashed with `exec /usr/local/bin/docker-entrypoint.sh:
-  no such file or directory`** when run on a Docker image built from
-  a Windows host. The shell script was committed with CRLF line
-  endings (Windows-style), so the kernel saw the shebang as
-  `#!/bin/sh\r` and tried to exec a binary called `/bin/sh\r`,
-  which doesn't exist. Same bug latent in `scripts/init-env.sh`.
-- **Normalized to LF** (single Unix line endings) the following files:
-  - `docker-entrypoint.sh`
-  - `scripts/init-env.sh`
-  - `Dockerfile`
-  - `.gitattributes` (new file)
-  - `scripts/check-line-endings.sh` (new file)
-- **Belt-and-suspenders in `Dockerfile`**: after `COPY
-  --chmod=755 docker-entrypoint.sh /usr/local/bin/...`, a `RUN` step
-  invokes `dos2unix` (or a `sed 's/\r$//'` fallback) to strip any
-  stray Windows line endings. The `head -c 10 | od -c` at the end of
-  the same `RUN` makes the failure loud if normalization somehow
-  fails.
-
-### ✨ New
-- **`.gitattributes`** — forces `*.sh` and `Dockerfile*` to LF
-  on checkout, and `*.ps1` to CRLF (Windows PowerShell needs CRLF).
-  Prevents this regression from recurring when a developer on
-  Windows opens a shell script in a CRLF-normalizing editor.
-- **`scripts/check-line-endings.sh`** — standalone auditor that walks
-  the repo, finds every `*.sh`, `Dockerfile*`, and `.gitattributes`,
-  and reports any that still contain CR characters. Returns non-zero
-  exit code so it can run in CI. Excludes `node_modules`, `.next`,
-  `.venv`, `.git`, and the BMAD agent directories.
-
-### 🧪 Verification
-- All four target files: **0 CRLF, 107+ LF lines** (verified with
-  PowerShell regex scan of the raw bytes).
-- First 10 bytes of `docker-entrypoint.sh`: `35 33 47 98 105 110 47
-  115 104 10` = `#!/bin/sh\n` — clean shebang, ready for `execve()`.
-- `init-env.ps1` deliberately kept at 132 CRLF (PowerShell expects
-  CRLF; `.gitattributes` preserves this).
-
----
-
-## [Unreleased] — Docker Env Bootstrap (2026-08-30)
-
-### 🐛 Bug fix
-- **`docker run --env-file .env ...` failed with
-  `The system cannot find the file specified`** because `.env` is
-  gitignored and is not created by the project on a fresh clone.
-  - Root cause: only `.env.example` (3 lines, mostly placeholders) and
-    `.env.local` (gitignored dev secrets) existed. The README assumed
-    `.env` already existed.
-  - Fix: shipped two new bootstrap scripts that create a complete
-    `.env` from `.env.example`, generate a 32-byte random
-    `AUTH_SECRET`, and auto-import real values from `.env.local` if
-    present.
-
-### ✨ New
-- `scripts/init-env.ps1` (Windows PowerShell) and `scripts/init-env.sh`
-  (Linux/macOS) — copy `.env.example` → `.env`, generate `AUTH_SECRET`,
-  prompt for any remaining hand-filled secrets, optionally run
-  `docker build`. Use `.\scripts\init-env.ps1 -Force` to overwrite an
-  existing `.env`.
-- `docker-entrypoint.sh` (copied into the image at
-  `/usr/local/bin/docker-entrypoint.sh`) — runs **before** the Node
-  server starts and:
-  1. Verifies every required env var is present and non-empty.
-  2. Validates `DATABASE_URL` starts with `postgresql://` / `postgres://`.
-  3. Validates `AUTH_SECRET` is at least 32 characters.
-  4. On any failure, prints a clear red error block listing exactly
-     which vars are missing and how to fix them, then exits with code 1.
-  5. Otherwise, starts the Python ML service in the background, waits
-     up to 10 s for it to come up, then `exec`s the Node server.
-- The Dockerfile now uses this entrypoint via
-  `ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]` so any
-  misconfiguration produces a clear, actionable error message instead
-  of a silent 500 from Prisma.
-
-### 📝 Updated
-- `.env.example` rewritten with **all 14 vars** the container needs,
-  each annotated with a comment explaining what to fill in.
-- `README.md` Docker section now points to the bootstrap scripts and
-  shows three run modes (env-file, inline `-e`, manual).
-- `Dockerfile` now copies + chmod's the entrypoint and uses it as the
-  image entrypoint.
-
----
-
 ## [Unreleased] — Test Timezone Fix (2026-08-30)
 
 ### 🐛 Test fix
@@ -250,7 +212,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 5 consecutive runs of the formerly-failing test file: all 12/12 pass.
 - Full Vitest suite: 80/80 pass across 10 test files.
 - `npm run build`: clean.
-
 
 ---
 
@@ -278,4 +239,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   match the Docker base image and the upstream package requirements.
 - `.github/workflows/ci.yml` `setup-node` version bumped from `20` to
   `22` in both the `test-nextjs` and `build-nextjs` jobs.
-
