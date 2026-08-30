@@ -1,5 +1,5 @@
 /**
- * POST /api/cron/nightly-forecast
+ * GET /api/cron/nightly-forecast  (also accepts POST)
  *
  * Vercel Cron schedule: `30 12 * * *` (12:30 UTC = 18:00 Sri Lanka).
  *
@@ -7,13 +7,18 @@
  * so the forecast for tomorrow is ready before evening service prep
  * begins.
  *
- * Authenticated by `x-cron-secret` header (see `src/lib/cron-auth.ts`).
+ * Authenticated by `Authorization: Bearer <CRON_SECRET>` header
+ * (Vercel sends this automatically; see `src/lib/cron-auth.ts`).
+ *
+ * Vercel Cron invokes endpoints with HTTP GET, so we export GET as
+ * the primary handler. POST is preserved as an alias for ad-hoc
+ * curl-based testing and any pre-existing callers.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { runNightlyForecast } from "@/lib/forecast-runner";
 import { assertCronSecret } from "@/lib/cron-auth";
 
-export async function POST(req: NextRequest) {
+async function handle(req: NextRequest) {
   const guard = assertCronSecret(req);
   if (guard) return guard;
 
@@ -32,4 +37,15 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Vercel Cron uses GET — https://vercel.com/docs/cron-jobs
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+// POST preserved for ad-hoc curl-based testing and any pre-existing
+// internal callers.
+export async function POST(req: NextRequest) {
+  return handle(req);
 }

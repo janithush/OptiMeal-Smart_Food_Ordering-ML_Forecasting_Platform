@@ -1,11 +1,16 @@
 /**
- * POST /api/cron/weekly-retrain
+ * GET /api/cron/weekly-retrain  (also accepts POST)
  *
  * Vercel Cron schedule: `30 20 * * 6` (Sat 20:30 UTC = Sun 02:00 Sri Lanka).
  *
  * Story 7.6: weekly ML model retraining pipeline.
  *
- * Authenticated by `x-cron-secret` header (see `src/lib/cron-auth.ts`).
+ * Authenticated by `Authorization: Bearer <CRON_SECRET>` header
+ * (Vercel sends this automatically; see `src/lib/cron-auth.ts`).
+ *
+ * Vercel Cron invokes endpoints with HTTP GET, so we export GET as
+ * the primary handler. POST is preserved as an alias for ad-hoc
+ * curl-based testing and any pre-existing callers.
  *
  * NOTE: This job may exceed the Vercel Hobby plan's 10s function
  * timeout. On the Pro plan, the `maxDuration` can be raised to 300s
@@ -18,7 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runWeeklyRetraining } from "@/lib/retrain-runner";
 import { assertCronSecret } from "@/lib/cron-auth";
 
-export async function POST(req: NextRequest) {
+async function handle(req: NextRequest) {
   const guard = assertCronSecret(req);
   if (guard) return guard;
 
@@ -36,4 +41,15 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Vercel Cron uses GET — https://vercel.com/docs/cron-jobs
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+// POST preserved for ad-hoc curl-based testing and any pre-existing
+// internal callers.
+export async function POST(req: NextRequest) {
+  return handle(req);
 }

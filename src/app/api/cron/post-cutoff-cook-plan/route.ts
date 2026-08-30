@@ -1,19 +1,24 @@
 /**
- * POST /api/cron/post-cutoff-cook-plan
+ * GET /api/cron/post-cutoff-cook-plan  (also accepts POST)
  *
  * Vercel Cron schedule: `35 3 * * *` (03:35 UTC = 09:05 Sri Lanka).
  *
  * Story 7.4: counts confirmed pre-orders for today and updates each
  * CookPlanItem to `finalQty = max(forecastQty, preOrderQty * 1.10)`.
  *
- * Authenticated by `x-cron-secret` header (see `src/lib/cron-auth.ts`).
+ * Authenticated by `Authorization: Bearer <CRON_SECRET>` header
+ * (Vercel sends this automatically; see `src/lib/cron-auth.ts`).
+ *
+ * Vercel Cron invokes endpoints with HTTP GET, so we export GET as
+ * the primary handler. POST is preserved as an alias for ad-hoc
+ * curl-based testing and any pre-existing callers.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { runPostCutoffUpdate } from "@/lib/cook-plan";
 import { getIO } from "@/lib/socket-server";
 import { assertCronSecret } from "@/lib/cron-auth";
 
-export async function POST(req: NextRequest) {
+async function handle(req: NextRequest) {
   const guard = assertCronSecret(req);
   if (guard) return guard;
 
@@ -47,4 +52,15 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Vercel Cron uses GET — https://vercel.com/docs/cron-jobs
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+// POST preserved for ad-hoc curl-based testing and any pre-existing
+// internal callers.
+export async function POST(req: NextRequest) {
+  return handle(req);
 }
