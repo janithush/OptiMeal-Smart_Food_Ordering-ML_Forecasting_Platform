@@ -4,8 +4,17 @@ const nextConfig: NextConfig = {
   // Production hardening
   poweredByHeader: false,
   reactStrictMode: true,
-  // Emit a self-contained `standalone` build for Docker
-  output: "standalone",
+  // Emit a self-contained `standalone` build for Docker. The default
+  // Next.js output is used on Vercel because Next.js 16.3.0 has a known
+  // bug (vercel/next.js#96646) where the Vercel adapter's onBuildComplete
+  // hook reads `.next/next-server.js.nft.json`, but `output: "standalone"`
+  // no longer emits that file in 16.3.x, causing:
+  //   Error: ENOENT: no such file or directory,
+  //         open '/vercel/path0/.next/next-server.js.nft.json'
+  // Keeping `standalone` for Docker (which copies `.next/standalone/`
+  // directly) and using the default output on Vercel is the official
+  // workaround from the Next.js team.
+  output: process.env.VERCEL ? undefined : "standalone",
 
   images: {
     remotePatterns: [
