@@ -69,7 +69,13 @@ export default function AdminMenuClient({ userName }: { userName: string }) {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchMenu(), fetchIngredients()]).finally(() => setLoading(false));
+    // Fetch in an async IIFE so the setState call sits behind an `await`.
+    // React Compiler's set-state-in-effect rule allows setState after
+    // an await (it's no longer "synchronous" within the effect body).
+    (async () => {
+      await Promise.all([fetchMenu(), fetchIngredients()]);
+      setLoading(false);
+    })();
   }, [fetchMenu, fetchIngredients]);
 
   // ── CRUD Handlers ──────────────────────────────────────────────
@@ -358,6 +364,7 @@ export default function AdminMenuClient({ userName }: { userName: string }) {
 
       {/* Form Modal */}
       <MenuItemForm
+        key={editItem?.id ?? "new"}
         isOpen={formOpen}
         onClose={() => { setFormOpen(false); setEditItem(null); }}
         onSave={editItem ? handleUpdate : handleCreate}

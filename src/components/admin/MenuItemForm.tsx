@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, Plus, Trash2, Loader2 } from "lucide-react";
 
@@ -31,41 +31,32 @@ interface Props {
 }
 
 export default function MenuItemForm({ isOpen, onClose, onSave, initial, mode, allIngredients }: Props) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [basePrice, setBasePrice] = useState(initial?.basePrice ?? 0);
-  const [dietaryType, setDietaryType] = useState(initial?.dietaryType ?? "VEGETARIAN");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [isActive, setIsActive] = useState(initial?.isActive ?? true);
-  const [ingredients, setIngredients] = useState<(IngredientRow & { isNew: boolean })[]>([]);
+  // The parent passes a `key={editItem?.id ?? "new"}` so each edit of a
+  // different item remounts this component. We can therefore read
+  // `initial` once at mount and avoid the setState-in-effect that
+  // react-hooks/set-state-in-effect would otherwise flag.
+  const [name, setName] = useState<string>(initial?.name ?? "");
+  const [description, setDescription] = useState<string>(initial?.description ?? "");
+  const [basePrice, setBasePrice] = useState<number>(initial?.basePrice ?? 0);
+  const [dietaryType, setDietaryType] = useState<string>(initial?.dietaryType ?? "VEGETARIAN");
+  const [imageUrl, setImageUrl] = useState<string>(initial?.imageUrl ?? "");
+  const [isActive, setIsActive] = useState<boolean>(initial?.isActive ?? true);
+  const [ingredients, setIngredients] = useState<(IngredientRow & { isNew: boolean })[]>(() => {
+    return (initial?.ingredients || []).map((i) => {
+      const match = allIngredients.find((ai) => ai.id === i.ingredientId);
+      return {
+        ingredientId: i.ingredientId,
+        name: match?.name ?? "Unknown",
+        unit: match?.unit ?? "kg",
+        quantityPerPortion: i.quantityPerPortion,
+        isNew: false,
+      };
+    });
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (initial) {
-      setName(initial.name);
-      setDescription(initial.description);
-      setBasePrice(initial.basePrice);
-      setDietaryType(initial.dietaryType);
-      setImageUrl(initial.imageUrl);
-      setIsActive(initial.isActive);
-
-      // Map existing ingredients
-      const rows = (initial.ingredients || []).map((i) => {
-        const match = allIngredients.find((ai) => ai.id === i.ingredientId);
-        return {
-          ingredientId: i.ingredientId,
-          name: match?.name ?? "Unknown",
-          unit: match?.unit ?? "kg",
-          quantityPerPortion: i.quantityPerPortion,
-          isNew: false,
-        };
-      });
-      setIngredients(rows);
-    }
-  }, [initial, allIngredients]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

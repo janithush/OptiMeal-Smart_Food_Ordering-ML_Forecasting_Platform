@@ -5,12 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Loader2, X, Check, AlertCircle } from "lucide-react";
 
 interface Props {
-  isOpen: boolean;
   onClose: () => void;
   onScan: (qrCode: string) => Promise<{ success: boolean; orderNumber?: string; studentName?: string; error?: string }>;
 }
 
-export default function QRScanner({ isOpen, onClose, onScan }: Props) {
+export default function QRScanner({ onClose, onScan }: Props) {
   const [mode, setMode] = useState<"camera" | "manual">("manual");
   const [manualCode, setManualCode] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -46,15 +45,24 @@ export default function QRScanner({ isOpen, onClose, onScan }: Props) {
     streamRef.current = null;
   }, []);
 
+  // Synchronize with the camera (external system) — the parent remounts this
+  // component each time the scanner is opened, so we no longer reset local
+  // state here. The only state update is the camera-failure fallback,
+  // wrapped in an async IIFE so it sits behind an `await`.
   useEffect(() => {
-    if (isOpen) {
-      setManualCode("");
-      setResult(null);
-      startCamera().catch(() => setMode("manual"));
-    } else {
+    let cancelled = false;
+    (async () => {
+      try {
+        await startCamera();
+      } catch {
+        if (!cancelled) setMode("manual");
+      }
+    })();
+    return () => {
+      cancelled = true;
       stopCamera();
-    }
-  }, [isOpen, startCamera, stopCamera]);
+    };
+  }, [startCamera, stopCamera]);
 
   const handleManualSubmit = async () => {
     const code = manualCode.trim();
@@ -75,8 +83,6 @@ export default function QRScanner({ isOpen, onClose, onScan }: Props) {
       setScanning(false);
     }
   };
-
-  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
