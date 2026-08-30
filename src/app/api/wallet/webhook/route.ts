@@ -22,6 +22,12 @@ import { emitDashboardRefresh } from "@/lib/order-events";
  *     the insert, AFTER the unique-key check, so two racing webhooks
  *     can never double-credit the same user.
  *
+ * Error responses:
+ *   - 400 for client errors (bad signature, malformed orderId, unknown
+ *     user, FK violation). PayHere does NOT retry 4xx.
+ *   - 500 only for genuine server-side errors. PayHere retries 5xx for
+ *     up to 24 hours, so we use 4xx aggressively to stop retry storms.
+ *
  * No JWT auth — PayHere is an external third-party server.
  */
 export async function POST(req: NextRequest) {
@@ -103,6 +109,28 @@ export async function POST(req: NextRequest) {
         return;
       }
 
+      // Verify the user exists BEFORE attempting to upsert a wallet.
+      // The orderId format is `CAF-TOPUP-{userId}-{ts}` and the userId
+      // portion may reference a user that was deleted, never existed,
+      // or was probed by an attacker. Without this check, the upsert
+      // throws PrismaClientKnownRequestError code P2003 (foreign-key
+      // violation on the User FK), which the catch block below would
+      // map to a generic 500. PayHere treats 5xx as a transient error
+      // and retries for up to 24 hours, amplifying a single bad orderId
+      // into dozens of identical 500s. Returning 400 instead stops
+      // the retry storm.
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (!user) {
+        // Throw a typed error we can detect in the catch block.
+        throw Object.assign(new Error("user_not_found"), {
+          code: "USER_NOT_FOUND" as const,
+          orderId,
+        });
+      }
+
       // Get or create wallet
       const wallet = await tx.walletAccount.upsert({
         where: { userId },
@@ -146,13 +174,35 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ status: "credited" });
   } catch (e) {
-    // P2002 = idempotency key conflict (race condition — already processed)
+    // Idempotency: order already processed (race condition or PayHere retry)
     if ((e as { code?: string })?.code === "P2002") {
       console.log(`[webhook] Order ${orderId} duplicate (P2002) — idempotent`);
       return NextResponse.json({ status: "already_processed" });
     }
+    // User-mismatch (our own typed error): return 400 so PayHere does
+    // NOT retry the webhook for 24 hours.
+    if ((e as { code?: string })?.code === "USER_NOT_FOUND") {
+      console.warn(
+        `[webhook] orderId ${orderId} references unknown user — returning 400 (no retry)`
+      );
+      return NextResponse.json(
+        { error: "Unknown user", orderId },
+        { status: 400 }
+      );
+    }
+    // Foreign-key violation that bypassed our pre-check (defensive — only
+    // fires if a user is deleted between the findUnique and the upsert).
+    if ((e as { code?: string })?.code === "P2003") {
+      console.warn(
+        `[webhook] P2003 FK violation for order ${orderId} — returning 400 (no retry)`
+      );
+      return NextResponse.json(
+        { error: "Referenced record not found", orderId },
+        { status: 400 }
+      );
+    }
+    // Anything else is a real internal error — keep 500.
     console.error("[webhook] Error processing payment:", e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
-
