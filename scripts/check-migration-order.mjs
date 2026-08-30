@@ -1,9 +1,10 @@
 /**
  * check-migration-order.mjs
  *
- * Verifies that every `CREATE TABLE` in every `prisma/migrations/*/migration.sql`
- * is topologically ordered — i.e. every referenced table appears on an
- * earlier line than the table that holds the FK.
+ * Verifies that every `CREATE TABLE` in every Prisma migration file
+ * (under `prisma/migrations/<dir>/migration.sql`) is topologically
+ * ordered — i.e. every referenced table appears on an earlier line
+ * than the table that holds the FK.
  *
  * This is a belt-and-suspenders check for the build pipeline. The CI
  * "Compute migration checksums" step in `.github/workflows/ci.yml`
@@ -14,7 +15,7 @@
  *
  * Usage:
  *   node scripts/check-migration-order.mjs
- *   node scripts/check-migration-order.mjs prisma/migrations/0_init/migration.sql
+ *   node scripts/check-migration-order.mjs path-to-migration.sql
  *
  * Exit code 0 if all migrations are well-ordered; exit code 1 otherwise.
  */
@@ -46,13 +47,10 @@ for (const file of migrationFiles) {
   }
 
   // Walk the file tracking the "current" CREATE TABLE statement and
-  // collect all REFERENCES that belong to it. Multi-line statements
-  // are handled correctly: we keep track of the last CREATE TABLE
-  // until the matching ");" is found.
+  // collect all REFERENCES that belong to it.
   const errors = [];
   let currentTable = null;
   let currentLine = 0;
-  let depth = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -65,22 +63,6 @@ for (const file of migrationFiles) {
     if (ctMatch) {
       currentTable = ctMatch[1];
       currentLine = i + 1;
-      depth = 0;
-    }
-
-    // Track parenthesis depth so we know when the current CREATE TABLE
-    // statement ends. (A ");" closes the statement.)
-    for (const ch of line) {
-      if (ch === "(") depth++;
-      else if (ch === ")") depth--;
-    }
-    if (currentTable && depth <= 0 && line.includes(";")) {
-      // Statement ended — we don't reset currentTable here, because the
-      // next statement may have FKs that we still want attributed to
-      // currentTable. (No, actually, this is wrong: REFERENCES clauses
-      // are only inside the CREATE TABLE statement.)
-      // Simpler: keep currentTable set; only reset when we hit the next
-      // CREATE TABLE.
     }
 
     const refMatches = [...line.matchAll(/REFERENCES "(\w+)"/g)];
