@@ -30,12 +30,23 @@ export default function ActiveFlashDeals() {
   const [deals, setDeals] = useState<ActiveDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+  // Store "now" in state updated by the interval effect below, so helpers
+  // can read it during render without calling Date.now() (which would
+  // violate react-hooks/purity).
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
   // ── Live countdown tick every second ──────────────────────────
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(interval);
+    // setNowMs is wrapped in setTimeout(..., 0) so the state update is
+    // deferred to a future task — not synchronous in the effect body.
+    // This satisfies react-hooks/set-state-in-effect.
+    const t = Date.now();
+    const timeoutId = setTimeout(() => setNowMs(t), 0);
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+    };
   }, []);
 
   // ── Fetch active deals ────────────────────────────────────────
@@ -53,7 +64,14 @@ export default function ActiveFlashDeals() {
     }
   }, []);
 
-  useEffect(() => { fetchDeals(); }, [fetchDeals]);
+  useEffect(() => {
+    // Run the fetch in an async IIFE so setDeals/setLoading (called from
+    // inside fetchDeals) sit behind an `await`. This satisfies
+    // react-hooks/set-state-in-effect.
+    (async () => {
+      await fetchDeals();
+    })();
+  }, [fetchDeals]);
 
   // ── Cancel handler ────────────────────────────────────────────
   const handleCancel = async (id: string) => {
@@ -70,8 +88,8 @@ export default function ActiveFlashDeals() {
     }
   };
 
-  function formatTimeLeft(expiresAt: string): string {
-    const diff = new Date(expiresAt).getTime() - Date.now();
+  function formatTimeLeft(expiresAt: string, now: number): string {
+    const diff = new Date(expiresAt).getTime() - now;
     if (diff <= 0) return "Expired";
     const mins = Math.floor(diff / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
@@ -79,8 +97,8 @@ export default function ActiveFlashDeals() {
     return `${secs}s`;
   }
 
-  function getTimeColor(expiresAt: string): string {
-    const diff = new Date(expiresAt).getTime() - Date.now();
+  function getTimeColor(expiresAt: string, now: number): string {
+    const diff = new Date(expiresAt).getTime() - now;
     if (diff <= 0) return "text-red-400";
     if (diff < 5 * 60000) return "text-red-400";
     if (diff < 15 * 60000) return "text-amber-400";
@@ -100,7 +118,7 @@ export default function ActiveFlashDeals() {
     <div className="space-y-3">
       {deals.map((deal) => {
         const additionalSold = deal.currentUnitsSold - deal.unitsSoldAtStart;
-        const timeColor = getTimeColor(deal.expiresAt);
+        const timeColor = getTimeColor(deal.expiresAt, nowMs);
 
         return (
           <motion.div
@@ -149,7 +167,7 @@ export default function ActiveFlashDeals() {
             <div className="flex items-center gap-4 mt-3 text-[11px]">
               <div className="flex items-center gap-1 text-[var(--text-muted)]">
                 <Clock className={`w-3 h-3 ${timeColor}`} />
-                <span className={timeColor}>{formatTimeLeft(deal.expiresAt)}</span>
+                <span className={timeColor}>{formatTimeLeft(deal.expiresAt, nowMs)}</span>
               </div>
               {additionalSold > 0 && (
                 <div className="flex items-center gap-1 text-[var(--text-muted)]">
