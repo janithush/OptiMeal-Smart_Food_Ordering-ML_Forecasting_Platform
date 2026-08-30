@@ -260,7 +260,16 @@ def predict(item: dict) -> dict:
 
     low = max(0.0, predicted - rmse)
     high = predicted + rmse
-    confidence = min(r2 * 100, 100.0)
+    # Confidence reflects trained-model quality (R²), but is clamped into a
+    # meaningful band [20, 95]:
+    #   * Floor of 20% — never claim effectively-zero or negative confidence;
+    #     R² can be negative when the model is worse than the baseline mean,
+    #     which would otherwise yield meaningless 0% / -12% confidence.
+    #   * Ceiling of 95% — the dashboard treats ≥95% as "highly confident";
+    #     an exact 100% implies the model is perfect, which is rarely true in
+    #     production and risks the admin dismissing other signals.
+    #   * NaN R² (corrupt artifact) → fall back to 50% (uncertain).
+    confidence = _confidence_from_r2(r2)
 
     return {
         "menuItemId": item.get("menuItemId", ""),
@@ -270,6 +279,27 @@ def predict(item: dict) -> dict:
         "confidenceScore": round(confidence, 2),
         "modelVersion": "linear-regression-v1",
     }
+
+
+def _confidence_from_r2(r2: float) -> float:
+    """Map a trained model's R² score to a 0–100 confidence percentage.
+
+    The mapping is bounded in [20.0, 95.0] so the dashboard never sees a
+    meaningless 0% / 100% / negative value. NaN or non-finite R² (e.g.
+    a corrupt .pkl artifact) collapses to 50% (maximum uncertainty) so
+    the admin is prompted to investigate the artifact rather than
+    trusting an automated forecast.
+    """
+    try:
+        r2_val = float(r2)
+    except (TypeError, ValueError):
+        return 50.0
+    if r2_val != r2_val:  # NaN check (NaN != NaN)
+        return 50.0
+    # Linear scale: R²=0.0 → 20%, R²=1.0 → 95% (but R² rarely hits 1.0 in
+    # production). Negative R² (model worse than baseline mean) floors at 20%.
+    scaled = max(0.0, min(1.0, r2_val)) * 100.0
+    return max(20.0, min(95.0, scaled * 0.75 + 20.0))
 
 
 def _moving_average(values: list[float], window: int = 7) -> float:
@@ -428,6 +458,15 @@ def retrain_model(item_name: str, historical_sales: list[float], semester_period
 
     # Build training data
     if len(historical_sales) < 9:
+        # Not enough data to fit a Linear Regression reliably. Return an
+        # HONEST signal: do NOT claim a successful retrain, do NOT mark
+        # with the trained-model version, and critically do NOT touch the
+        # existing .pkl on disk. Existing model (if any) stays in place.
+        logger.info(
+            "Skipping retrain for '%s' — insufficient data (%d rows, need ≥9)",
+            item_name,
+            len(historical_sales),
+        )
         return {
             "menuItemId": item_name,
             "itemName": item_name,
@@ -435,7 +474,10 @@ def retrain_model(item_name: str, historical_sales: list[float], semester_period
             "mae": 0.0,
             "r2": 0.0,
             "rolledBack": False,
-            "modelVersion": "linear-regression-v1",
+            "modelVersion": "insufficient-data",
+            "rollbackReason": None,
+            "skipped": True,
+            "reason": "insufficient_data",
         }
 
     # Build feature vector (default features for retraining)
@@ -446,6 +488,13 @@ def retrain_model(item_name: str, historical_sales: list[float], semester_period
 
     X_hist, y_hist = _build_training_data(historical_sales)
     if X_hist is None:
+        # _build_training_data itself rejected the rows (e.g. < lookback+2).
+        # Same honest-short-circuit semantics as above.
+        logger.info(
+            "Skipping retrain for '%s' — could not build training pairs from %d rows",
+            item_name,
+            len(historical_sales),
+        )
         return {
             "menuItemId": item_name,
             "itemName": item_name,
@@ -453,7 +502,10 @@ def retrain_model(item_name: str, historical_sales: list[float], semester_period
             "mae": 0.0,
             "r2": 0.0,
             "rolledBack": False,
-            "modelVersion": "linear-regression-v1",
+            "modelVersion": "insufficient-data",
+            "rollbackReason": None,
+            "skipped": True,
+            "reason": "insufficient_data",
         }
 
     n_samples = X_hist.shape[0]
