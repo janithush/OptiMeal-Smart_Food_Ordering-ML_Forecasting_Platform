@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased] — Vercel Cron Schedulers (2026-08-30)
 
 ### 🐛 Bug fix
+- **ML `/forecast` endpoint 500s with feature-dimension mismatch**
+  (live-bug-audit). The trained `StandardScaler` was fit on a 17-feature
+  vector (7-day history window + 10 domain features), but `predict()` fed
+  only the 10-feature domain vector to `scaler.transform()`, raising
+  `ValueError: X has 10 features, but StandardScaler is expecting 17
+  features as input` and causing the API to return HTTP 500. Fix: added
+  `_build_full_feature_vector()` that mirrors the training-time
+  concatenation, plus a short-history guard that routes to the
+  deterministic fallback when fewer than 7 days of history are available.
 - **Schedulers don't run in production** (Bug #1 from live-bug-audit).
   `server.ts` has 4 background schedulers (smart discount 12:30 PM,
   nightly ML forecast 18:00, post-cutoff cook plan 09:05, weekly

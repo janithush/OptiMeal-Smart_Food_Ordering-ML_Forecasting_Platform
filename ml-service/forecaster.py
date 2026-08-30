@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 MODELS_DIR = Path(__file__).parent / "models"
 
 SEMESTER_PERIODS = ["REGULAR_LECTURES", "PRE_EXAM_WEEK", "STUDY_LEAVE", "EXAM_PERIOD"]
+LOOKBACK = 7  # Days of historical sales used as features
+DOMAIN_FEATURE_COUNT = 10  # One for each entry in FEATURE_NAMES below
+FEATURE_COUNT = LOOKBACK + DOMAIN_FEATURE_COUNT  # = 17
 FEATURE_NAMES = [
     "day_of_week",
     "is_weekend",
@@ -32,6 +35,11 @@ FEATURE_NAMES = [
     "semester_STUDY_LEAVE",
     "semester_EXAM_PERIOD",
 ]
+
+# Sanity check on the canonical feature list length.
+assert len(FEATURE_NAMES) == DOMAIN_FEATURE_COUNT, (
+    "FEATURE_NAMES length must match DOMAIN_FEATURE_COUNT"
+)
 
 
 def _safe_int(value, default=0):
@@ -61,7 +69,16 @@ def _one_hot_semester(period: str) -> list[int]:
 
 
 def _build_feature_vector(item: dict) -> np.ndarray:
-    """Build a (1, N) feature vector from an item payload dict."""
+    """Build the (1, 10) domain-only feature vector from an item payload dict.
+
+    NOTE: This is the *domain* portion of the feature vector only — used as
+    a building block for the full training/inference vector (see
+    ``_build_full_feature_vector``). It is NOT fed directly to the scaler,
+    because the StandardScaler was fit on the concatenated historical window
+    plus these 10 domain features (17 total). Calling scaler.transform on
+    this vector alone raises ``ValueError: X has 10 features, but
+    StandardScaler is expecting 17 features as input``.
+    """
     semester_one_hot = _one_hot_semester(item.get("semester_period", "REGULAR_LECTURES"))
 
     features = [
@@ -74,6 +91,41 @@ def _build_feature_vector(item: dict) -> np.ndarray:
         *semester_one_hot,
     ]
     return np.array(features, dtype=np.float64).reshape(1, -1)
+
+
+def _build_full_feature_vector(item: dict, lookback: int = 7) -> np.ndarray:
+    """Build the (1, lookback + 10) feature vector used by both training and prediction.
+
+    Layout MUST match what ``train_model`` feeds to the StandardScaler, otherwise
+    the scaler will raise a feature-count mismatch at inference time.
+
+    Order:
+        [last ``lookback`` sales | 10 domain features]
+
+    The trailing ``lookback`` sales are taken from ``item["historical_sales"]``.
+    If the payload has fewer than ``lookback`` days of history, the missing
+    trailing slots are zero-padded (this is a deliberate choice — the model
+    was trained with sliding windows of the same length, so a short window
+    at inference time will degrade the prediction but at least stays
+    dimensionally valid). Callers that want to avoid degraded predictions
+    should route to the fallback path instead (see ``predict``).
+    """
+    history = item.get("historical_sales", []) or []
+    # Take the most-recent ``lookback`` values; zero-pad on the left if shorter.
+    if len(history) >= lookback:
+        window = [float(v) for v in history[-lookback:]]
+    else:
+        window = [0.0] * (lookback - len(history)) + [float(v) for v in history]
+
+    domain = _build_feature_vector(item).reshape(-1).tolist()
+    full = [*window, *domain]
+    vec = np.array(full, dtype=np.float64).reshape(1, -1)
+    assert vec.shape[1] == FEATURE_COUNT, (
+        f"_build_full_feature_vector produced {vec.shape[1]} features; "
+        f"expected FEATURE_COUNT={FEATURE_COUNT} ({LOOKBACK} history + "
+        f"{DOMAIN_FEATURE_COUNT} domain)"
+    )
+    return vec
 
 
 def _build_training_data(historical_sales: list[float], lookback: int = 7):
@@ -155,11 +207,33 @@ def predict(item: dict) -> dict:
     dashboard surface low-confidence predictions.
     """
     item_name = item.get("name", item.get("menuItemId", "unknown"))
-    features = _build_feature_vector(item)
+    historical_sales = item.get("historical_sales", []) or []
     model_path = MODELS_DIR / f"{item_name}.pkl"
+
+    # If we have a model on disk but insufficient history to build the
+    # 7-day historical window it was trained on, route to the fallback.
+    # Feeding a zero-padded window to a scaler fit on real sales would
+    # produce a nonsense prediction (and silently worsen the forecast),
+    # so we explicitly bail to the deterministic estimator instead.
+    if model_path.exists() and len(historical_sales) < 7:
+        logger.info(
+            "Insufficient history (%d days) for model '%s', using fallback",
+            len(historical_sales),
+            item_name,
+        )
+        return _fallback_prediction(
+            item_name=item_name,
+            historical_sales=historical_sales,
+            menu_item_id=item.get("menuItemId"),
+        )
 
     if model_path.exists():
         try:
+            # MUST use the full 17-feature vector (7-day history + 10 domain)
+            # to match the StandardScaler fit during training — otherwise we
+            # get: ValueError: X has 10 features, but StandardScaler is
+            # expecting 17 features as input.
+            features = _build_full_feature_vector(item, lookback=7)
             artifact = joblib.load(model_path)
             X_scaled = artifact["scaler"].transform(features)
             predicted_raw = artifact["model"].predict(X_scaled)[0]

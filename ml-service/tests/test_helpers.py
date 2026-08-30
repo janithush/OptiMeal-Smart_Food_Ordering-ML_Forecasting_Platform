@@ -12,7 +12,11 @@ from forecaster import (
     _safe_float,
     _one_hot_semester,
     SEMESTER_PERIODS,
+    FEATURE_COUNT,
+    LOOKBACK,
+    DOMAIN_FEATURE_COUNT,
     _build_feature_vector,
+    _build_full_feature_vector,
     _build_training_data,
 )
 
@@ -109,3 +113,85 @@ class TestBuildTrainingData:
         # First window uses sales[0:7] → predicts sales[8] = 26
         assert list(X[0]) == [10, 12, 14, 16, 18, 20, 22]
         assert y[0] == 26
+
+
+class TestBuildFullFeatureVector:
+    """Regression coverage for the Railway production bug:
+
+    ``ValueError: X has 10 features, but StandardScaler is expecting 17
+    features as input.``
+
+    Training concatenates a 7-day history window with the 10 domain features
+    to produce a 17-feature vector. ``_build_full_feature_vector`` must
+    produce the exact same layout at inference time — otherwise the saved
+    scaler rejects the vector and the /forecast endpoint 500s.
+    """
+
+    def test_constants_match_expected(self):
+        assert LOOKBACK == 7
+        assert DOMAIN_FEATURE_COUNT == 10
+        assert FEATURE_COUNT == 17
+
+    def test_returns_one_row_with_seventeen_features(self):
+        item = {
+            "day_of_week": 2,
+            "is_weekend": False,
+            "pre_order_count": 10,
+            "rolling_7d_avg": 25.5,
+            "rolling_14d_avg": 23.1,
+            "days_since_launch": 100,
+            "historical_sales": [40, 42, 38, 45, 50, 48, 44],
+            "semester_period": "REGULAR_LECTURES",
+        }
+        X = _build_full_feature_vector(item)
+        assert X.shape == (1, 17)
+
+    def test_history_window_occupies_first_seven_slots(self):
+        item = {
+            "historical_sales": [10, 20, 30, 40, 50, 60, 70, 80, 90],
+            "day_of_week": 1,
+        }
+        X = _build_full_feature_vector(item)
+        # The 7-day window should be the *most recent* 7 sales.
+        assert list(X[0, :7]) == [30, 40, 50, 60, 70, 80, 90]
+
+    def test_domain_features_occupy_trailing_ten_slots(self):
+        item = {
+            "historical_sales": [10] * 7,
+            "day_of_week": 3,
+            "is_weekend": True,
+            "pre_order_count": 7,
+            "rolling_7d_avg": 11.0,
+            "rolling_14d_avg": 12.0,
+            "days_since_launch": 50,
+            "semester_period": "EXAM_PERIOD",
+        }
+        X = _build_full_feature_vector(item)
+        domain = list(X[0, 7:])
+        assert domain[0] == 3      # day_of_week
+        assert domain[1] == 1      # is_weekend
+        assert domain[2] == 7      # pre_order_count
+        assert domain[3] == pytest.approx(11.0)
+        assert domain[4] == pytest.approx(12.0)
+        assert domain[5] == 50     # days_since_launch
+        assert domain[6:10] == [0, 0, 0, 1]  # EXAM_PERIOD one-hot
+
+    def test_short_history_is_left_zero_padded(self):
+        # 4 days of history, lookback=7 → 3 leading zeros, then 4 values.
+        item = {"historical_sales": [10, 20, 30, 40]}
+        X = _build_full_feature_vector(item)
+        assert list(X[0, :7]) == [0.0, 0.0, 0.0, 10.0, 20.0, 30.0, 40.0]
+
+    def test_missing_history_defaults_to_zeros(self):
+        item: dict = {}  # no historical_sales key at all
+        X = _build_full_feature_vector(item)
+        assert list(X[0, :7]) == [0.0] * 7
+
+    def test_exact_lookback_history_works(self):
+        item = {
+            "historical_sales": [5, 6, 7, 8, 9, 10, 11],
+            "day_of_week": 0,
+        }
+        X = _build_full_feature_vector(item)
+        assert X.shape == (1, 17)
+        assert list(X[0, :7]) == [5, 6, 7, 8, 9, 10, 11]
