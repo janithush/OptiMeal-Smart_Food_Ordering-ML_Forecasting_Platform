@@ -31,10 +31,23 @@ REQUIRED_VARS="
   NEXT_PUBLIC_BASE_URL
 "
 
+# Use ``printenv`` rather than ``eval "val=\${$v:-}"`` so that values
+# containing shell metacharacters (``$``, backticks, ``\``, ``!``) — common
+# in secrets like PayHere & Google OAuth keys — are passed through verbatim.
+# The previous ``eval`` form re-parsed the value as shell code and mangled
+# secrets containing ``$`` or backticks, causing the entrypoint to falsely
+# report them as missing and refuse to boot.
+#
+# Note: we cannot use ``${!v}`` (Bash indirect expansion) because the
+# script runs under BusyBox ``/bin/sh`` on Alpine, which does not support
+# that syntax.
 MISSING=""
 for v in $REQUIRED_VARS; do
-  eval "val=\${$v:-}"
-  if [ -z "$val" ]; then
+  val="$(printenv "$v" 2>/dev/null || printf '')"
+  # Strip surrounding whitespace (including stray trailing spaces from a
+  # mis-edited .env line). Empty after stripping → considered missing.
+  stripped="$(printf '%s' "$val" | tr -d '[:space:]')"
+  if [ -z "$stripped" ]; then
     MISSING="$MISSING $v"
   fi
 done
@@ -59,13 +72,19 @@ if [ -n "$MISSING" ]; then
 fi
 
 # ── Validate DATABASE_URL looks like a Postgres URL ──────────────────────
-case "$DATABASE_URL" in
+# Defensive normalisation: ``docker --env-file`` does NOT strip wrapping
+# double-quotes when the quoted value contains a stray space before the
+# closing quote (a common mis-edit in .env files). So the value the
+# app sees can be ``"postgresql://... "`` with literal quote characters.
+# We strip those, plus any whitespace, before the scheme check.
+DATABASE_URL_TRIMMED="$(printf '%s' "$DATABASE_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+case "$DATABASE_URL_TRIMMED" in
   postgresql://*|postgres://*)
     : # ok
     ;;
   *)
     _red "  ✗ DATABASE_URL must start with postgresql:// or postgres://"
-    _red "    Got: ${DATABASE_URL:0:30}..."
+    _red "    Got: ${DATABASE_URL_TRIMMED:0:30}..."
     exit 1
     ;;
 esac
@@ -99,8 +118,8 @@ done
 _green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 _green "  ✓ CaféSmart starting on port ${PORT:-3000}"
 _green "    ENV:   NODE_ENV=${NODE_ENV:-production}"
-_green "    DB:    ${DATABASE_URL%%@*}@***"
-_green "    ML:    $ML_SERVICE_URL"
+_green "    DB:    ${DATABASE_URL_TRIMMED%%@*}@***"
+_green "    ML:    $(printenv ML_SERVICE_URL)"
 _green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 cd /app
