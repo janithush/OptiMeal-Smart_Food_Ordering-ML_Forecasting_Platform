@@ -65,6 +65,25 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Compute migration checksums (for production rollout)
+        id: migration-checksums
+        run: |
+          echo "Checksums of all migration files (Prisma migrate deploy format):"
+          for f in prisma/migrations/*/migration.sql; do
+            if [ -f "$f" ]; then
+              dir=$(basename "$(dirname "$f")")
+              # Prisma's checksum = SHA256 of normalised SQL
+              #   (line comments "-- ..." stripped, empty lines dropped,
+              #    remaining lines trimmed, joined with newlines)
+              hash=$(awk '{
+                sub(/--.*$/, "");
+                sub(/[[:space:]]+$/, "");
+                if (length($0) > 0) print $0
+              }' "$f" | sha256sum | awk "{print \$1}")
+              echo "  $dir: $hash"
+            fi
+          done
+
       - name: Apply migrations to test database
         run: npx prisma migrate deploy
         env:
