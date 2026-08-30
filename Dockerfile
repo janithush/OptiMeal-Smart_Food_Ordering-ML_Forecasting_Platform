@@ -47,11 +47,27 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # ─── Stage 3: ML service deps ──────────────────────────────────────────────
-FROM python:3.12-slim AS ml-deps
+# Build Python wheels for the ML microservice in a dedicated Alpine stage.
+# We can't do this in the runner because:
+#
+#   1. The runner image is Alpine (musl libc), and pip cannot fetch
+#      manylinux wheels built for glibc — so scikit-learn must be
+#      built from sdist, which needs a compiler toolchain.
+#
+#   2. The ml-deps stage runs the SAME ``node:22-alpine`` base and
+#      installs the SAME ``apk add python3 py3-pip`` as the runner,
+#      so the Python interpreter and site-packages layout match exactly.
+#
+# We build wheels once here into ``/wheels``, then install them into
+# the runtime image without needing the compiler there.
+FROM node:22-alpine AS ml-deps
+RUN apk add --no-cache python3 python3-dev py3-pip \
+      gcc musl-dev linux-headers g++ make \
+      fortify-headers libffi-dev openssl-dev
 WORKDIR /ml
 COPY ml-service/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip wheel --no-cache-dir \
+        --wheel-dir=/wheels -r requirements.txt
 COPY ml-service/ ./
 
 # ─── Stage 4: runtime ──────────────────────────────────────────────────────
@@ -80,6 +96,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modul
 
 # Copy ML service
 COPY --from=ml-deps --chown=nextjs:nodejs /ml /app/ml-service
+
+# Install pre-built Python wheels for the ML service. The wheels were
+# built in the ``ml-deps`` stage against the SAME Alpine/Python
+# interpreter, so they are ABI-compatible with the runtime image's
+# system Python — no compiler toolchain needed in this layer.
+COPY --from=ml-deps /wheels /wheels
+RUN pip install --no-cache-dir --break-system-packages \
+        --no-index --find-links=/wheels \
+        -r /app/ml-service/requirements.txt && \
+    rm -rf /wheels /root/.cache/pip
 
 # Copy entrypoint script and make it executable. The entrypoint validates
 # required env vars BEFORE starting the app so misconfiguration fails
