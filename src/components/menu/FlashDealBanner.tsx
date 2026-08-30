@@ -23,8 +23,8 @@ interface Props {
   onExpired: (dealId: string) => void;
 }
 
-function formatTimeLeft(expiresAt: string): string {
-  const diff = new Date(expiresAt).getTime() - Date.now();
+function formatTimeLeft(expiresAt: string, now: number): string {
+  const diff = new Date(expiresAt).getTime() - now;
   if (diff <= 0) return "Expired";
   const mins = Math.floor(diff / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
@@ -38,28 +38,37 @@ function formatTimeLeft(expiresAt: string): string {
  * Story 6.4: Smart Discount Trigger & Flash Deals (FR-25)
  */
 export default function FlashDealBanner({ deal, onOrderNow, onExpired }: Props) {
-  const [timeLeft, setTimeLeft] = useState(() => formatTimeLeft(deal.expiresAt));
+  // Store "now" in state updated by the interval effect so the render
+  // body never calls Date.now() (which would violate react-hooks/purity).
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [timeLeft, setTimeLeft] = useState<string>(
+    () => formatTimeLeft(deal.expiresAt, Date.now())
+  );
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    const check = () => {
-      const diff = new Date(deal.expiresAt).getTime() - Date.now();
+    const tick = () => {
+      const t = Date.now();
+      setNowMs(t);
+      const diff = new Date(deal.expiresAt).getTime() - t;
       if (diff <= 0) {
         setIsExpired(true);
         onExpired(deal.id);
         return;
       }
-      setTimeLeft(formatTimeLeft(deal.expiresAt));
+      setTimeLeft(formatTimeLeft(deal.expiresAt, t));
     };
 
-    check();
-    const interval = setInterval(check, 1000);
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [deal.expiresAt, deal.id, onExpired]);
 
   if (isExpired) return null;
 
-  const isUrgent = new Date(deal.expiresAt).getTime() - Date.now() < 5 * 60 * 1000;
+  // Derive isUrgent from state captured by the interval callback, not
+  // from a fresh Date.now() during render.
+  const isUrgent = new Date(deal.expiresAt).getTime() - nowMs < 5 * 60 * 1000;
 
   return (
     <AnimatePresence>
