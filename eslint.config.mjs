@@ -22,6 +22,14 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated Prisma client
     "src/generated/**",
+    // Auto-generated test artifacts. These directories contain large
+    // embedded JSON and binary `.zip` trace files (Playwright writes
+    // multi-MB trace archives). When ESLint tries to parse them as
+    // JavaScript, Babel throws `RangeError: Invalid string length`
+    // because the content exceeds the parser's buffer. They are never
+    // edited by hand, so it's safe to ignore them globally.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 
