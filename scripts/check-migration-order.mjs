@@ -37,6 +37,32 @@ for (const file of migrationFiles) {
   const content = readFileSync(file, "utf8");
   const lines = content.split("\n");
 
+  // Walk every previous migration file in lexical order and accumulate
+  // the set of tables that already exist by the time THIS migration runs.
+  // This lets us treat REFERENCES to previously-created tables as valid.
+  const existingTables = new Set();
+  if (!targets.length) {
+    // Only auto-collect when scanning the whole directory; when the user
+    // explicitly hands us a single file, treat that file as the whole world.
+    const allDirs = readdirSync(MIGRATIONS_DIR)
+      .filter((d) => statSync(join(MIGRATIONS_DIR, d)).isDirectory())
+      .sort();
+    // file looks like ".../prisma/migrations/<dir>/migration.sql" on POSIX
+    // or "...\prisma\migrations\<dir>\migration.sql" on Windows.
+    const parts = file.split(/[\\/]/);
+    const thisDir = parts[parts.length - 2];
+    const myIdx = allDirs.indexOf(thisDir);
+    for (let i = 0; i < myIdx; i++) {
+      const prev = readFileSync(
+        join(MIGRATIONS_DIR, allDirs[i], "migration.sql"),
+        "utf8"
+      );
+      for (const m of prev.matchAll(/CREATE TABLE "(\w+)"/g)) {
+        existingTables.add(m[1]);
+      }
+    }
+  }
+
   // Build a map: tableName -> 1-based line number where CREATE TABLE starts.
   const tableOrder = new Map();
   for (const line of lines) {
@@ -70,6 +96,12 @@ for (const file of migrationFiles) {
       const ref = m[1];
       const refLine = tableOrder.get(ref);
       if (refLine === undefined) {
+        // Reference to a table not created in this file. Acceptable if
+        // (a) the table already existed before this migration, or
+        // (b) the script is being run on a single file (treat as standalone).
+        if (existingTables.has(ref) || targets.length > 0) {
+          continue;
+        }
         errors.push(
           `    line ${i + 1} (${currentTable ?? "?"}): REFERENCES ${ref} — TABLE NOT FOUND in migration`
         );

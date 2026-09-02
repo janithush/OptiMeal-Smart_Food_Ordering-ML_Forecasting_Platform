@@ -2,11 +2,16 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getTodayDate } from "@/lib/inventory";
-import AcademicCalendarClient from "./AcademicCalendarClient";
+import { countPendingInvitations } from "@/lib/admin-management";
+import SettingsLayoutClient from "./SettingsLayoutClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSettingsPage() {
+export default async function AdminSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const session = await requireAuth();
 
   if (session.user.role !== "ADMIN") {
@@ -32,11 +37,21 @@ export default async function AdminSettingsPage() {
     label: e.label ?? "",
   }));
 
+  const params = await searchParams;
+  const validTabs = ["admins", "system", "calendar"] as const;
+  const tab = (validTabs as readonly string[]).includes(params.tab ?? "")
+    ? (params.tab as "admins" | "system" | "calendar")
+    : "admins";
+
+  const pendingInvitations = await countPendingInvitations();
+
   return (
-    <AcademicCalendarClient
+    <SettingsLayoutClient
       userName={session.user?.name ?? "Admin"}
-      initialEntries={initialEntries}
+      initialCalendarEntries={initialEntries}
       currentSemesterPeriod={semesterEntry?.semesterPeriod ?? "REGULAR_LECTURES"}
+      initialActiveTab={tab}
+      pendingInvitations={pendingInvitations}
     />
   );
 }

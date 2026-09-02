@@ -100,6 +100,35 @@ export interface ServerToClientEvents {
     message: string;
     timestamp: string;
   }) => void;
+  // Admin Management: real-time admin list updates
+  adminUserAdded: (payload: {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    invitedByName?: string;
+    timestamp: string;
+  }) => void;
+  adminUserRemoved: (payload: {
+    adminId: string;
+    timestamp: string;
+  }) => void;
+  adminUserUpdated: (payload: {
+    adminId: string;
+    changes: Record<string, unknown>;
+    timestamp: string;
+  }) => void;
+  // Admin Management: pending invitation count (for nav badge)
+  invitationsChanged: (payload: {
+    pendingCount: number;
+    timestamp: string;
+  }) => void;
+  // Admin Management: system settings changed
+  systemSettingsChanged: (payload: {
+    changedBy: string;
+    fields: string[];
+    timestamp: string;
+  }) => void;
 }
 
 // Events the CLIENT emits TO the SERVER
