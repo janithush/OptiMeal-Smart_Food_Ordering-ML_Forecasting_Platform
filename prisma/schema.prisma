@@ -86,6 +86,8 @@ model User {
   allergies         String[]                                     // Multi-select: Nuts, Dairy, Gluten, Shellfish, Eggs, Soy, None
   phone             String?                                      // Contact phone number
   onboardingDone    Boolean            @default(false)
+  isActive          Boolean            @default(true)            // Soft-delete: false = deactivated admin
+  lastLoginAt       DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -96,6 +98,9 @@ model User {
   groupOrders       GroupOrder[]       @relation("OrganizerOrders")
   groupParticipants GroupOrderParticipant[]
   groupCartItems    GroupOrderCartItem[]
+  invitationsCreated AdminInvitation[] @relation("InvitedBy")
+  auditLogActions   AdminAuditLog[]    @relation("AuditActor")
+  auditLogTargets   AdminAuditLog[]    @relation("AuditTarget")
 }
 
 // ─── NextAuth (Auth.js) models ────────────────────────────────────
@@ -452,4 +457,77 @@ model QueueTimeRecord {
   createdAt       DateTime @default(now())
 
   @@unique([date, slotTime])
+}
+
+// ─── Admin Management & System Settings ───────────────────────────
+// Story: Admin User Management + System Settings
+// - AdminInvitation: Token-based invite for new admins (Google OAuth flow)
+// - SystemSettings: Singleton row for canteen-wide config
+// - AdminAuditLog: Every admin-management action logged for accountability
+
+model AdminInvitation {
+  id            String    @id @default(uuid())
+  email         String                                  // The Google email being invited
+  token         String    @unique                       // Cryptographically random, single-use
+  invitedBy     String                                   // Admin user ID who created it
+  invitedByName String                                   // Denormalized for display
+  expiresAt     DateTime                                // 7 days from creation
+  acceptedAt    DateTime?
+  acceptedBy    String?                                 // User ID who accepted (for audit)
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  inviter       User      @relation("InvitedBy", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model SystemSettings {
+  id                     String   @id @default("singleton")     // Always exactly one row
+  canteenName            String   @default("QuickBite Canteen")
+  canteenLogoUrl         String?
+  canteenContactEmail    String?
+  canteenContactPhone    String?
+  currencyCode           String   @default("LKR")
+  currencySymbol         String   @default("Rs.")
+  preOrderCutoffTime     String   @default("09:00")              // HH:MM (Sri Lanka)
+  pickupSlotStart        String   @default("11:30")
+  pickupSlotEnd          String   @default("13:15")
+  pickupSlotIntervalMin  Int      @default(15)
+  defaultSlotCapacity    Int      @default(30)
+  minTopupAmount         Decimal  @default(100)    @db.Decimal(8, 2)
+  maxTopupAmount         Decimal  @default(50000)   @db.Decimal(8, 2)
+  maxCoinRedemption      Int      @default(100)
+  mlConfidenceThreshold  Decimal  @default(70.0)    @db.Decimal(5, 2)  // Below this → tag as fallback
+  smartDiscountThreshold Decimal  @default(30.0)    @db.Decimal(5, 2)  // % of cook plan target
+  smartDiscountCheckTime String   @default("12:30")                 // HH:MM (Sri Lanka)
+  enableGroupOrders      Boolean  @default(true)
+  enableFlashDeals       Boolean  @default(true)
+  enableCoinsLoyalty     Boolean  @default(true)
+  maintenanceMode        Boolean  @default(false)
+  maintenanceMessage     String?  @db.Text
+  updatedBy              String?
+  updatedAt              DateTime @updatedAt
+  createdAt              DateTime @default(now())
+}
+
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  actorId   String                                   // Admin who performed the action
+  targetId  String?                                  // Affected user/invitation/settings (null for global)
+  action    String                                   // INVITE_CREATED, INVITE_ACCEPTED, ADMIN_PROMOTED, ADMIN_DEMOTED, ADMIN_DEACTIVATED, SETTINGS_UPDATED
+  metadata  String?  @db.Text                         // JSON snapshot of before/after
+  ipAddress String?
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+
+  actor     User     @relation("AuditActor",  fields: [actorId],  references: [id], onDelete: Cascade)
+  target    User?    @relation("AuditTarget", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([targetId])
+  @@index([action])
+  @@index([createdAt])
 }

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play, ArrowLeft, Brain } from "lucide-react";
+import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play, Brain } from "lucide-react";
 
 interface CalendarEntry {
   id: string;
@@ -26,12 +25,12 @@ const PERIOD_OPTIONS = [
   { value: "EXAM_PERIOD", label: "Exam Period" },
 ];
 
-export default function AcademicCalendarClient({
-  userName,
+export default function AcademicCalendarTab({
+  userName: _userName,
   initialEntries,
   currentSemesterPeriod,
 }: Props) {
-  const router = useRouter();
+  void _userName;
   const [entries, setEntries] = useState<CalendarEntry[]>(initialEntries);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -167,64 +166,19 @@ export default function AcademicCalendarClient({
   };
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
-      <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.push("/admin/dashboard")} className="p-1">
-              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-            </button>
-            <div>
-              <h1 className="text-lg font-bold text-[var(--text-primary)]">Settings</h1>
-              <p className="text-xs text-[var(--text-muted)]">
-                Welcome, {userName}
-                <span className="ml-2 text-[11px] text-emerald-400">
-                  Current: {PERIOD_OPTIONS.find((o) => o.value === currentSemesterPeriod)?.label ?? "Regular Lectures"}
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleRunForecast}
-              disabled={forecastRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors"
-            >
-              {forecastRunning ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Play className="w-3.5 h-3.5" />
-              )}
-              Run Forecast Now
-            </button>
-            <button
-              onClick={handleRetrain}
-              disabled={retrainRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
-            >
-              {retrainRunning ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Brain className="w-3.5 h-3.5" />
-              )}
-              Retrain Models
-            </button>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Academic Calendar</h3>
+          <p className="text-xs text-[var(--text-muted)]">Current semester: <span className="text-emerald-400">{PERIOD_OPTIONS.find((o) => o.value === currentSemesterPeriod)?.label ?? "Regular Lectures"}</span></p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={handleRunForecast} disabled={forecastRunning} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors">{forecastRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />} Run Forecast</button>
+          <button onClick={handleRetrain} disabled={retrainRunning} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">{retrainRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />} Retrain Models</button>
         </div>
       </div>
-
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* Forecast result toast */}
-        {forecastResult && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/5 border border-[rgba(255,255,255,0.1)] rounded-lg px-4 py-3 text-xs text-[var(--text-secondary)]"
-          >
-            {forecastResult}
-          </motion.div>
-        )}
-
+      {forecastResult && <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">{forecastResult}</div>}
+      <div>
         {/* Academic Calendar */}
         <div className="bg-[oklch(0.11_0.01_260)] backdrop-blur-sm rounded-xl border border-[rgba(255,255,255,0.07)] shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)] bg-[oklch(0.10_0.01_260)]">

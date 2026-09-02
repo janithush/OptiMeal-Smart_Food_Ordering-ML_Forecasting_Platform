@@ -48,6 +48,19 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
     rollingAvg: number;
   } | null>(null);
 
+  // Admin management: pending invitations count for nav badge
+  const [pendingInvitations, setPendingInvitations] = useState(0);
+
+  const fetchPendingInvitations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/admins");
+      if (res.ok) {
+        const json = await res.json();
+        setPendingInvitations(json.pendingInvitations ?? 0);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   // WebSocket connection to /admin namespace
   useEffect(() => {
     let socket: ReturnType<typeof import("socket.io-client").io> | null = null;
@@ -93,6 +106,11 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
 
       socket.on("flashDealCancelled", () => {
         setDealsRefreshKey((k) => k + 1);
+      });
+
+      // Admin management: pending invitations badge
+      socket.on("invitationsChanged", (payload: { pendingCount: number }) => {
+        setPendingInvitations(payload.pendingCount);
       });
     };
 
@@ -153,7 +171,7 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
   // Fetch both on mount (async wrapper satisfies react-hooks/exhaustive-deps)
   useEffect(() => {
     void (async () => {
-      await Promise.all([checkDiscounts(), fetchProcurementAlerts(), fetchStaffPlanning()]);
+      await Promise.all([checkDiscounts(), fetchProcurementAlerts(), fetchStaffPlanning(), fetchPendingInvitations()]);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -256,11 +274,16 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
                 Analytics
               </button>
               <button
-                onClick={() => router.push("/admin/settings")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors"
+                onClick={() => router.push("/admin/settings?tab=admins")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] transition-colors relative"
               >
                 <Settings className="w-3.5 h-3.5" />
                 Settings
+                {pendingInvitations > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-black text-[9px] font-bold flex items-center justify-center">
+                    {pendingInvitations}
+                  </span>
+                )}
               </button>
               <button
                 onClick={refreshData}
