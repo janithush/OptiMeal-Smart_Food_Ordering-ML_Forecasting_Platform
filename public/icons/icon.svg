@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- CaféSmart app icon. Full-bleed dark background (maskable-safe);
+       cloche glyph kept inside the central 80% safe zone. -->
+  <rect width="512" height="512" rx="112" fill="#171208"/>
+  <!-- steam -->
+  <path d="M218 118c-10 16 10 26 0 42M256 108c-10 16 10 26 0 42M294 118c-10 16 10 26 0 42"
+        stroke="#EFA31A" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <!-- dome -->
+  <path d="M116 300a140 140 0 0 1 280 0Z" fill="#EFA31A"/>
+  <!-- handle -->
+  <circle cx="256" cy="146" r="16" fill="#EFA31A"/>
+  <!-- tray -->
+  <rect x="96" y="300" width="320" height="26" rx="13" fill="#EFA31A"/>
+  <rect x="196" y="340" width="120" height="18" rx="9" fill="#EFA31A" opacity="0.65"/>
+</svg>
