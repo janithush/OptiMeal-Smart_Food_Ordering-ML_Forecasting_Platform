@@ -34,6 +34,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Unit tests import pure helpers that transitively pull server libs.
+      // Stub `server-only` so the barrier doesn't fail test imports.
+      // Production builds still enforce the real barrier.
+      "server-only": path.resolve(__dirname, "./tests/support/server-only-mock.ts"),
     },
   },
 });

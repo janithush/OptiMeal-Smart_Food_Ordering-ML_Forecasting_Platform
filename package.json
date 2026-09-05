@@ -43,8 +43,8 @@
     "@react-pdf/renderer": "^4.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^13.0.0",
     "lucide-react": "^1.28.0",
+    "motion": "^13.2.0",
     "next": "16.3.0",
     "next-auth": "^5.0.0-beta.32",
     "pg": "^8.22.0",
@@ -52,9 +52,11 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
+    "server-only": "^0.0.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.5.0",
@@ -79,4 +81,3 @@
     "vitest": "^4.1.10"
   }
 }
-

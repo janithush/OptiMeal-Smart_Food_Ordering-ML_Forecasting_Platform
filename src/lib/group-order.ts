@@ -261,7 +261,8 @@ export async function checkoutGroupOrder(
   groupOrderId: string,
   organizerId: string,
   pickupSlotId: string,
-  coinsRedeemed: number
+  coinsRedeemed: number,
+  idempotencyKey: string
 ): Promise<GroupOrderCheckoutResult> {
   const group = await prisma.groupOrder.findUnique({
     where: { id: groupOrderId },
@@ -304,6 +305,15 @@ export async function checkoutGroupOrder(
 
   coinsRedeemed = Math.max(0, Math.min(100, Math.floor(coinsRedeemed)));
 
+  // Idempotency: a replay with the same client key must never double-charge.
+  // The key is namespaced so it can never collide with single-order keys.
+  const txKey = `grp-${idempotencyKey}`;
+  const replay = await prisma.walletTransaction.findUnique({
+    where: { idempotencyKey: txKey },
+    select: { id: true },
+  });
+  if (replay) throw new Error("DUPLICATE_SUBMISSION");
+
   const result = await prisma.$transaction(async (tx) => {
     // Validate & increment slot
     const slot = await tx.pickupSlot.findUnique({
@@ -331,13 +341,13 @@ export async function checkoutGroupOrder(
 
     // Deduct from wallet
     const wallet = (await tx.walletAccount.findUnique({ where: { userId: organizerId } }))!;
-    const idempotencyKey = `grp-${groupOrderId}-${Date.now()}`;
     await tx.walletTransaction.create({
       data: {
         walletId: wallet.id,
         type: "ORDER_DEDUCTION",
         amount: -(netAmount - actualRedeemed),
-        idempotencyKey,
+        // Stable client-supplied key → P2002 on racing duplicates.
+        idempotencyKey: txKey,
         runningBalance: currentBalance - netAmount,
       },
     });

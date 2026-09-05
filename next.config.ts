@@ -24,20 +24,49 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Security headers (defense-in-depth; CSP would be ideal but the
-  // third-party PayHere iframe conflicts with strict-dynamic).
+  // Security headers (defense-in-depth; CSP Level 3 compatible with
+  // Next.js inline scripts + PayHere iframe + Google OAuth).
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      // Next.js requires 'unsafe-inline' for runtime scripts; no 'unsafe-eval'.
+      "script-src 'self' 'unsafe-inline' https://www.payhere.lk https://sandbox.payhere.lk https://accounts.google.com https://apis.google.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://images.unsplash.com https://res.cloudinary.com https://lh3.googleusercontent.com",
+      "connect-src 'self' https://accounts.google.com https://www.payhere.lk https://sandbox.payhere.lk",
+      "frame-src 'self' https://www.payhere.lk https://sandbox.payhere.lk https://accounts.google.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://www.payhere.lk https://sandbox.payhere.lk https://accounts.google.com",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+
     return [
       {
         source: "/(.*)",
         headers: [
+          { key: "Content-Security-Policy", value: csp },
+          // HSTS 2-year forced HTTPS (effective on HTTPS deployments).
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Browser tab memory isolation.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           {
             key: "Permissions-Policy",
             value: "camera=(self), geolocation=(), microphone=()",
           },
+        ],
+      },
+      {
+        // Service worker MUST NOT be cached — stale SW = stale app shell.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
         ],
       },
       {

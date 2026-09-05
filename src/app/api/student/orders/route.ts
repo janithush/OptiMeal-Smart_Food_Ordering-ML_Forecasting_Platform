@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { toDisplayLabel } from "@/lib/slots";
 import { earnCoins, redeemCoins } from "@/lib/coins";
 import { emitDashboardRefresh } from "@/lib/order-events";
+import { createOrderSchema } from "@/lib/validation/schemas";
 
 function generateOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -13,10 +14,17 @@ function generateOrderNumber(): string {
   return `#CAF-${date}-${suffix}`;
 }
 
-type OrderItemInput = { menuItemId: string; quantity: number; unitPrice: number };
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 /**
  * POST /api/student/orders
+ * Security: strict Zod validation, server-side re-pricing (client unitPrice
+ * is NEVER trusted), client-supplied idempotencyKey, atomic transaction
+ * with wallet row lock.
  */
 export async function POST(req: NextRequest) {
   const { session, error } = await verifyApiAuth();
@@ -26,24 +34,78 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const orderType = String(body.orderType ?? "");
-  const pickupSlotId = body.pickupSlotId ?? null;
-  const coinsRedeemed = Math.max(0, Math.min(100, Number(body.coinsRedeemed ?? 0) || 0));
-  const flashDealId = body.flashDealId ?? null;
-  const lineItems: OrderItemInput[] = Array.isArray(body.items) ? body.items : [];
+  const parsed = createOrderSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+  const { orderType, pickupSlotId, coinsRedeemed, flashDealId, items, idempotencyKey } =
+    parsed.data;
 
-  // Validation
-  if (lineItems.length === 0) {
-    return NextResponse.json({ error: "No items in order" }, { status: 400 });
-  }
-  if (!["PRE_ORDER", "WALK_IN"].includes(orderType)) {
-    return NextResponse.json({ error: "Invalid order type" }, { status: 400 });
-  }
-  if (orderType === "PRE_ORDER" && !pickupSlotId) {
-    return NextResponse.json({ error: "Pickup slot required for pre-order" }, { status: 400 });
+  // Idempotency: return existing order if this key was already used.
+  const existingTx = await prisma.walletTransaction.findUnique({
+    where: { idempotencyKey: `order-${idempotencyKey}` },
+    select: { orderId: true },
+  });
+  if (existingTx?.orderId) {
+    const existing = await prisma.order.findUnique({
+      where: { id: existingTx.orderId },
+      include: {
+        items: { include: { menuItem: { select: { name: true } } } },
+        pickupSlot: { select: { slotTime: true } },
+      },
+    });
+    if (existing) {
+      return NextResponse.json(
+        {
+          id: existing.id,
+          orderNumber: existing.orderNumber,
+          deduped: true,
+        },
+        { status: 200 }
+      );
+    }
   }
 
-  const totalAmount = lineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
+  // ─── Server-side re-pricing: NEVER trust client unitPrice ───
+  const menuItemIds = items.map((i) => i.menuItemId);
+  const today = startOfToday();
+  const dbItems = await prisma.menuItem.findMany({
+    where: { id: { in: menuItemIds }, isActive: true },
+    select: {
+      id: true,
+      basePrice: true,
+      dailySpecials: {
+        where: { date: today },
+        select: { specialPrice: true },
+        take: 1,
+      },
+    },
+  });
+  if (dbItems.length !== menuItemIds.length) {
+    return NextResponse.json(
+      { error: "One or more items are unavailable" },
+      { status: 410 }
+    );
+  }
+  const priceById = new Map(
+    dbItems.map((m) => [
+      m.id,
+      m.dailySpecials[0] ? Number(m.dailySpecials[0].specialPrice) : Number(m.basePrice),
+    ])
+  );
+  const pricedLines = items.map((li) => {
+    const unitPrice = priceById.get(li.menuItemId)!;
+    return {
+      menuItemId: li.menuItemId,
+      quantity: li.quantity,
+      unitPrice,
+      subtotal: Math.round(unitPrice * li.quantity * 100) / 100,
+    };
+  });
+  const totalAmount = Math.round(pricedLines.reduce((s, l) => s + l.subtotal, 0) * 100) / 100;
 
   // Story 6.4: Validate Flash Deal if provided
   let flashDealDiscount = 0;
@@ -55,20 +117,17 @@ export async function POST(req: NextRequest) {
     if (deal.cancelledAt || deal.expiresAt <= new Date()) {
       return NextResponse.json({ error: "Flash Deal has expired" }, { status: 410 });
     }
-    // Verify student hasn't already ordered this item today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStart = startOfToday();
     const alreadyOrdered = await prisma.orderItem.findFirst({
       where: {
         menuItemId: deal.menuItemId,
-        order: { studentId: userId, createdAt: { gte: today } },
+        order: { studentId: userId, createdAt: { gte: todayStart } },
       },
     });
     if (alreadyOrdered) {
       return NextResponse.json({ error: "Already ordered this deal item today" }, { status: 409 });
     }
-    // Calculate flash deal discount
-    const dealItem = lineItems.find((li) => li.menuItemId === deal.menuItemId);
+    const dealItem = pricedLines.find((li) => li.menuItemId === deal.menuItemId);
     if (dealItem) {
       const discountedPrice =
         Math.round(dealItem.unitPrice * (1 - deal.discountPercent / 100) * 100) / 100;
@@ -95,14 +154,15 @@ export async function POST(req: NextRequest) {
       }
 
       // ═══ Story 4.1: Real wallet deduction ══════════════════════════
-      // Get or create wallet
       let wallet = await tx.walletAccount.findUnique({ where: { userId } });
       if (!wallet) {
         wallet = await tx.walletAccount.create({ data: { userId } });
-        // Seed LKR 2,000 for demo
         await tx.walletTransaction.create({
           data: { walletId: wallet.id, type: "TOP_UP", amount: 2000, idempotencyKey: `SEED-${userId}`, runningBalance: 2000 },
         });
+      } else {
+        // Row-level lock: serialize concurrent order attempts for this wallet.
+        await tx.$executeRaw`SELECT "id" FROM "WalletAccount" WHERE "id" = ${wallet.id} FOR UPDATE`;
       }
 
       // Lock wallet: compute current balance
@@ -120,13 +180,12 @@ export async function POST(req: NextRequest) {
       if (coinsRedeemed > 0) {
         actualRedeemed = await redeemCoins(tx, userId, coinsRedeemed);
         if (actualRedeemed > 0) {
-          // Create COINS_REDEMPTION transaction (credits back to balance offset)
           await tx.walletTransaction.create({
             data: {
               walletId: wallet.id,
               type: "COINS_REDEMPTION",
               amount: -actualRedeemed,
-              idempotencyKey: `coins-${orderType === "PRE_ORDER" && pickupSlotId ? `order-${userId}-${pickupSlotId}` : `order-${userId}-walkin`}-${Date.now()}`,
+              idempotencyKey: `coins-${idempotencyKey}`,
               runningBalance: currentBalance - netAmount - actualRedeemed,
             },
           });
@@ -134,14 +193,13 @@ export async function POST(req: NextRequest) {
       }
 
       const newBalance = currentBalance - netAmount;
-      await tx.walletTransaction.create({
+      const deduction = await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           type: "ORDER_DEDUCTION",
           amount: -netAmount,
-          idempotencyKey: orderType === "PRE_ORDER" && pickupSlotId
-            ? `order-${userId}-${pickupSlotId}-${Date.now()}`
-            : `order-${userId}-walkin-${Date.now()}`,
+          // Client-supplied key → true idempotency. P2002 = duplicate submit.
+          idempotencyKey: `order-${idempotencyKey}`,
           runningBalance: newBalance,
         },
       });
@@ -155,12 +213,12 @@ export async function POST(req: NextRequest) {
       const orderNumber = generateOrderNumber();
       const { randomUUID } = await import("node:crypto");
 
-      return tx.order.create({
+      const created = await tx.order.create({
         data: {
           orderNumber,
           studentId: userId,
           type: orderType as "PRE_ORDER" | "WALK_IN",
-          pickupSlotId: orderType === "PRE_ORDER" ? pickupSlotId : null,
+          pickupSlotId: orderType === "PRE_ORDER" ? pickupSlotId! : null,
           totalAmount,
           coinsRedeemed: actualRedeemed,
           discountAmount: actualRedeemed + flashDealDiscount,
@@ -168,11 +226,11 @@ export async function POST(req: NextRequest) {
           flashDealId: flashDealId ?? null,
           qrCode: `CAF-SMART-${randomUUID()}`,
           items: {
-            create: lineItems.map((li) => ({
+            create: pricedLines.map((li) => ({
               menuItemId: li.menuItemId,
               quantity: li.quantity,
               unitPrice: li.unitPrice,
-              subtotal: li.quantity * li.unitPrice,
+              subtotal: li.subtotal,
             })),
           },
         },
@@ -181,6 +239,14 @@ export async function POST(req: NextRequest) {
           pickupSlot: { select: { slotTime: true } },
         },
       });
+
+      // Link deduction → order for idempotent replay lookup.
+      await tx.walletTransaction.update({
+        where: { id: deduction.id },
+        data: { orderId: created.id },
+      });
+
+      return created;
     });
 
     // Story 6.1: Emit live dashboard update to admin sockets
@@ -212,8 +278,13 @@ export async function POST(req: NextRequest) {
       if (e.message === "SLOT_FULL") return NextResponse.json({ error: "Slot is no longer available" }, { status: 409 });
       if (e.message === "SLOT_NOT_FOUND") return NextResponse.json({ error: "Slot not found" }, { status: 404 });
       if (e.message === "INSUFFICIENT_FUNDS") return NextResponse.json({ error: "Insufficient balance. Please top up your wallet." }, { status: 402 });
+      // Prisma unique violation on idempotencyKey → treat as duplicate submit.
+      const prismaErr = e as { code?: string };
+      if (prismaErr.code === "P2002") {
+        return NextResponse.json({ error: "Duplicate submission — order already placed" }, { status: 409 });
+      }
       console.error("[orders] unexpected error:", e.message, e.stack);
-      return NextResponse.json({ error: "Server error: " + e.message }, { status: 500 });
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
     throw e;
   }

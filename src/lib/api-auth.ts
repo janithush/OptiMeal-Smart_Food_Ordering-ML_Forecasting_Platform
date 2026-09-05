@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 /**
@@ -19,9 +20,20 @@ export function isAuthResult(outcome: AuthOutcome): outcome is AuthResult {
 
 export async function verifyApiAuth(): Promise<AuthOutcome> {
   const session = await auth() as AuthSession | null;
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return { session: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
+  // Fail-closed: instant deactivation — active DB check per request.
+  // JWT alone is not trusted for isActive.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isActive: true, role: true },
+  });
+  if (!dbUser || dbUser.isActive === false) {
+    return { session: null, error: NextResponse.json({ error: "Account deactivated" }, { status: 403 }) };
+  }
+  // Overwrite JWT role with DB truth (fail-closed to STUDENT).
+  session.user.role = dbUser.role === "ADMIN" ? "ADMIN" : "STUDENT";
   return { session, error: null };
 }
 

@@ -2,10 +2,19 @@ import { verifyApiAuth } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { buildPayHereFormData } from "@/lib/payhere";
 import { prisma } from "@/lib/prisma";
+import { walletTopupSchema } from "@/lib/validation/schemas";
 
 /**
  * POST /api/student/wallet/topup — initiate PayHere top-up.
- * Returns form data for the frontend to auto-submit to PayHere.
+ * Strict Zod validation (amount 100–50,000). Returns form data for the
+ * frontend to auto-submit to PayHere.
+ *
+ * NOTE: the PayHere `order_id` format (`CAF-TOPUP-{userId}-{ts}`) is FROZEN —
+ * the webhook's `extractUserIdFromOrderId` and in-flight payments depend on
+ * it. The client `idempotencyKey` is validated and logged for traceability
+ * across the PayHere redirect; double-submit protection comes from the
+ * client's loading guard (one PayHere session per attempt) plus the
+ * webhook's order_id dedupe (one credit per payment).
  */
 export async function POST(req: NextRequest) {
   const { session, error } = await verifyApiAuth();
@@ -14,13 +23,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const amount = Number(body.amount ?? 0);
-  if (!Number.isFinite(amount) || amount < 100) {
-    return NextResponse.json({ error: "Minimum top-up amount is LKR 100" }, { status: 400 });
+  const parsed = walletTopupSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
   }
-  if (amount > 50000) {
-    return NextResponse.json({ error: "Maximum top-up amount is LKR 50,000" }, { status: 400 });
-  }
+  const { amount, idempotencyKey } = parsed.data;
 
   // Fetch user details for PayHere form
   const user = await prisma.user.findUnique({
@@ -31,8 +41,9 @@ export async function POST(req: NextRequest) {
 
   const formData = buildPayHereFormData(amount, session.user.id, user.email, user.name ?? "", user.phone);
 
-  // Debug: log what's being sent to PayHere
-  console.log("[topup] PayHere form payload:", JSON.stringify(formData, null, 2));
+  if (idempotencyKey) {
+    console.log(`[topup] init attempt=${idempotencyKey} user=${session.user.id} amount=${amount} order=${formData.fields.order_id}`);
+  }
 
-  return NextResponse.json(formData);
+  return NextResponse.json({ ...formData, attemptKey: idempotencyKey ?? null });
 }

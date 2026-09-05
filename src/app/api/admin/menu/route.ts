@@ -1,6 +1,8 @@
 import { requireApiRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { menuItemCreateSchema } from "@/lib/validation/schemas";
+import { validateImageUrl } from "@/lib/validation/images";
 
 /**
  * GET /api/admin/menu — List all menu items (active + inactive)
@@ -50,39 +52,61 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const name = String(body.name ?? "").trim();
-  const basePrice = Number(body.basePrice ?? 0);
-  const dietaryType = String(body.dietaryType ?? "");
-  const description = body.description ? String(body.description) : null;
-  const imageUrl = body.imageUrl ? String(body.imageUrl) : null;
-  const ingredients: { ingredientId: string; quantityPerPortion: number }[] = Array.isArray(body.ingredients) ? body.ingredients : [];
-
-  if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
-  if (basePrice <= 0) return NextResponse.json({ error: "Price must be > 0" }, { status: 400 });
-  if (!["VEGAN", "VEGETARIAN", "NON_VEGETARIAN"].includes(dietaryType)) {
-    return NextResponse.json({ error: "Invalid dietary type" }, { status: 400 });
+  const parsed = menuItemCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
   }
+  const { name, basePrice, dietaryType, description, imageUrl, ingredients } = parsed.data;
 
-  // Validate image size
-  if (imageUrl && imageUrl.length > 600_000) {
-    return NextResponse.json({ error: "Image too large (max 500KB)" }, { status: 400 });
-  }
+  // Whitelist image MIME types (JPEG, PNG, WebP) with 5MB limit.
+  const imgErr = validateImageUrl(imageUrl ?? null);
+  if (imgErr) return NextResponse.json({ error: imgErr }, { status: 400 });
 
-  const item = await prisma.menuItem.create({
-    data: {
-      name,
-      basePrice,
-      dietaryType: dietaryType as "VEGAN" | "VEGETARIAN" | "NON_VEGETARIAN",
-      description,
-      imageUrl,
-      ingredients: ingredients.length > 0
-        ? { create: ingredients.map((i) => ({ ingredientId: i.ingredientId, quantityPerPortion: i.quantityPerPortion || 0 })) }
-        : undefined,
+  const item = await prisma.$transaction(
+    async (tx) => {
+      // Validate ingredient IDs exist (fail-closed inside atomic tx).
+      if (ingredients && ingredients.length > 0) {
+        const count = await tx.ingredient.count({
+          where: { id: { in: ingredients.map((i) => i.ingredientId) }, isActive: true },
+        });
+        if (count !== ingredients.length) {
+          throw new Error("INVALID_INGREDIENTS");
+        }
+      }
+      return tx.menuItem.create({
+        data: {
+          name,
+          basePrice,
+          dietaryType,
+          description: description ?? null,
+          imageUrl: imageUrl ?? null,
+          ingredients:
+            ingredients && ingredients.length > 0
+              ? {
+                  create: ingredients.map((i) => ({
+                    ingredientId: i.ingredientId,
+                    quantityPerPortion: i.quantityPerPortion,
+                  })),
+                }
+              : undefined,
+        },
+        include: {
+          ingredients: { include: { ingredient: { select: { name: true, unit: true } } } },
+        },
+      });
     },
-    include: {
-      ingredients: { include: { ingredient: { select: { name: true, unit: true } } } },
-    },
+    { maxWait: 5000, timeout: 20000 }
+  ).catch((e: unknown) => {
+    if (e instanceof Error && e.message === "INVALID_INGREDIENTS") return null;
+    throw e;
   });
+
+  if (!item) {
+    return NextResponse.json({ error: "Invalid ingredients" }, { status: 400 });
+  }
 
   return NextResponse.json({
     item: {

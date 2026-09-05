@@ -1,6 +1,7 @@
 import { requireApiRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { menuItemUpdateSchema, validateImageUrl } from "@/lib/validation/images";
 
 /**
  * PATCH /api/admin/menu/[id] — Update menu item
@@ -20,35 +21,41 @@ export async function PATCH(
   const existing = await prisma.menuItem.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
 
+  const parsed = menuItemUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+  const v = parsed.data;
+
   const data: Record<string, unknown> = {};
 
-  if (body.name !== undefined) data.name = String(body.name).trim();
-  if (body.description !== undefined) data.description = body.description ? String(body.description) : null;
-  if (body.basePrice !== undefined) {
-    const price = Number(body.basePrice);
-    if (price <= 0) return NextResponse.json({ error: "Price must be > 0" }, { status: 400 });
-    data.basePrice = price;
+  if (v.name !== undefined) data.name = v.name;
+  if (v.description !== undefined) data.description = v.description;
+  if (v.basePrice !== undefined) data.basePrice = v.basePrice;
+  if (v.dietaryType !== undefined) data.dietaryType = v.dietaryType;
+  if (v.imageUrl !== undefined) {
+    const imgErr = validateImageUrl(v.imageUrl);
+    if (imgErr) return NextResponse.json({ error: imgErr }, { status: 400 });
+    data.imageUrl = v.imageUrl;
   }
-  if (body.dietaryType !== undefined) {
-    if (!["VEGAN", "VEGETARIAN", "NON_VEGETARIAN"].includes(String(body.dietaryType))) {
-      return NextResponse.json({ error: "Invalid dietary type" }, { status: 400 });
-    }
-    data.dietaryType = String(body.dietaryType);
-  }
-  if (body.imageUrl !== undefined) {
-    const img = body.imageUrl ? String(body.imageUrl) : null;
-    if (img && img.length > 600_000) return NextResponse.json({ error: "Image too large" }, { status: 400 });
-    data.imageUrl = img;
-  }
-  if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
+  if (v.isActive !== undefined) data.isActive = v.isActive;
 
   // Update ingredients if provided
-  const ingredients: { ingredientId: string; quantityPerPortion: number }[] | undefined =
-    Array.isArray(body.ingredients) ? body.ingredients : undefined;
+  const ingredients = v.ingredients;
 
-  const item = await prisma.$transaction(
-    async (tx) => {
+  const item = await prisma
+    .$transaction(
+      async (tx) => {
     if (ingredients) {
+      if (ingredients.length > 0) {
+        const count = await tx.ingredient.count({
+          where: { id: { in: ingredients.map((i) => i.ingredientId) }, isActive: true },
+        });
+        if (count !== ingredients.length) throw new Error("INVALID_INGREDIENTS");
+      }
       // Replace all ingredients
       await tx.menuItemIngredient.deleteMany({ where: { menuItemId: id } });
       if (ingredients.length > 0) {
@@ -56,7 +63,7 @@ export async function PATCH(
           data: ingredients.map((i) => ({
             menuItemId: id,
             ingredientId: i.ingredientId,
-            quantityPerPortion: i.quantityPerPortion || 0,
+            quantityPerPortion: i.quantityPerPortion,
           })),
         });
       }
@@ -69,9 +76,17 @@ export async function PATCH(
         ingredients: { include: { ingredient: { select: { name: true, unit: true } } } },
       },
     });
-  },
-  { maxWait: 5000, timeout: 20000 }
-);
+    },
+    { maxWait: 5000, timeout: 20000 }
+    )
+    .catch((e: unknown) => {
+      if (e instanceof Error && e.message === "INVALID_INGREDIENTS") return null;
+      throw e;
+    });
+
+  if (!item) {
+    return NextResponse.json({ error: "Invalid ingredients" }, { status: 400 });
+  }
 
   return NextResponse.json({
     item: {
