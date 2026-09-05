@@ -21,7 +21,7 @@ export default async function ProfilePage() {
   if (!user) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] py-10 px-4">
+    <div className="min-h-screen bg-[var(--bg-base)] py-10 px-4">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

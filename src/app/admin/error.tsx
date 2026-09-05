@@ -21,9 +21,9 @@ export default function AdminError({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[oklch(0.08_0.01_260)]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg-base)]">
       <div
-        className="max-w-md w-full rounded-2xl p-6 text-center border border-[rgba(255,255,255,0.07)]"
+        className="max-w-md w-full rounded-2xl p-6 text-center border border-[var(--border-subtle)]"
         style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
       >
         <div

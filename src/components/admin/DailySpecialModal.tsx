@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, Sparkles, Tag } from "lucide-react";
+import { sheetVariants, fadeEase } from "@/lib/motion";
 
 interface Props {
   isOpen: boolean;
@@ -38,22 +39,24 @@ export default function DailySpecialModal({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={fadeEase}
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
         onClick={onCancel}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
+          variants={sheetVariants}
+          initial="hidden"
+          animate="shown"
+          exit="gone"
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-sm rounded-2xl p-6"
           style={{
-            background: "oklch(0.14 0.012 260)",
+            background: "var(--bg-elevated)",
             border: "1px solid var(--glass-border)",
           }}
         >

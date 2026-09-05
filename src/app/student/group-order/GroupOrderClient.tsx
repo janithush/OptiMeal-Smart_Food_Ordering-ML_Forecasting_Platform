@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence, LayoutGroup } from "motion/react";
+import { springSnappy, fadeEase, HIT_SLOP } from "@/lib/motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock, Timer, Loader2, Copy, Check, ShoppingBag } from "lucide-react";
 import CreateJoinGroup from "@/components/orders/CreateJoinGroup";
@@ -26,6 +27,10 @@ export default function GroupOrderClient({ userId, userName }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Double-submit guard: sync ref (immediate) + loading state (UI).
+  // Key is reused across retries so replays dedupe server-side.
+  const placingRef = useRef(false);
+  const checkoutKeyRef = useRef<string | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -82,21 +87,39 @@ export default function GroupOrderClient({ userId, userName }: Props) {
   };
 
   const handleCheckout = async () => {
-    if (!group || !selectedSlotId) return;
+    if (!group || !selectedSlotId || placingRef.current) return;
+    placingRef.current = true;
     setLoading(true);
     setError(null);
+    if (!checkoutKeyRef.current) {
+      checkoutKeyRef.current = crypto.randomUUID();
+    }
     try {
       const res = await fetch(`/api/student/group-orders/${group.id}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pickupSlotId: selectedSlotId, coinsRedeemed: 0 }),
+        body: JSON.stringify({
+          pickupSlotId: selectedSlotId,
+          coinsRedeemed: 0,
+          idempotencyKey: checkoutKeyRef.current,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Checkout failed");
+      if (!res.ok) {
+        if (res.status === 400) checkoutKeyRef.current = null;
+        if (res.status === 409 && data.duplicate) {
+          // Already processed — refresh instead of re-charging.
+          await refreshGroup();
+          throw new Error("Already submitted — group status refreshed");
+        }
+        throw new Error(data.error ?? "Checkout failed");
+      }
+      checkoutKeyRef.current = null;
       setCheckoutResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
     } finally {
+      placingRef.current = false;
       setLoading(false);
     }
   };
@@ -111,7 +134,7 @@ export default function GroupOrderClient({ userId, userName }: Props) {
   // ─── Render: Checkout Result ──────────────────────────────────────
   if (checkoutResult) {
     return (
-      <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
+      <div className="min-h-screen bg-[var(--bg-base)]">
         <div className="max-w-lg mx-auto px-4 pt-12 flex flex-col items-center text-center">
           <motion.div
             initial={{ scale: 0 }}
@@ -161,7 +184,7 @@ export default function GroupOrderClient({ userId, userName }: Props) {
   // ─── Render: Loading ────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-[oklch(0.08_0.01_260)] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
       </div>
     );
@@ -170,12 +193,17 @@ export default function GroupOrderClient({ userId, userName }: Props) {
   // ─── Render: No group yet → create/join ─────────────────────────
   if (!group) {
     return (
-      <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
-        <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
+      <div className="min-h-screen bg-[var(--bg-base)]">
+        <div className="sticky top-0 z-10 bg-[var(--bg-base)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-4">
           <div className="max-w-lg mx-auto flex items-center gap-3">
-            <button onClick={() => router.push("/student/home")} className="p-1">
-              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-            </button>
+            <motion.button
+              onClick={() => router.push("/student/home")}
+              whileTap={{ scale: 0.96 }}
+              aria-label="Back to menu"
+              className={`p-1 text-[var(--text-secondary)] ${HIT_SLOP}`}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </motion.button>
             <h1 className="text-lg font-bold text-[var(--text-primary)]">Group Order</h1>
           </div>
         </div>
@@ -194,25 +222,43 @@ export default function GroupOrderClient({ userId, userName }: Props) {
   const expiryTime = new Date(group.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] pb-32">
+    <div className="min-h-screen bg-[var(--bg-base)] pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
+      <div className="sticky top-0 z-10 bg-[var(--bg-base)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-4">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <button onClick={() => router.push("/student/home")} className="p-1">
-                <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-              </button>
+              <motion.button
+                onClick={() => router.push("/student/home")}
+                whileTap={{ scale: 0.96 }}
+                aria-label="Back to menu"
+                className={`p-1 text-[var(--text-secondary)] ${HIT_SLOP}`}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </motion.button>
               <h1 className="text-lg font-bold text-[var(--text-primary)]">Group Order</h1>
             </div>
             {/* Share code */}
-            <button
+            <motion.button
               onClick={copyCode}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
+              whileTap={{ scale: 0.96 }}
+              aria-label="Copy group code"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/30 hover:bg-purple-500/20 transition-colors ${HIT_SLOP}`}
             >
               <span className="text-sm font-mono font-bold tracking-widest text-purple-400">{group.code}</span>
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-purple-400" />}
-            </button>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={copied ? "copied" : "copy"}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6 }}
+                  transition={{ ...springSnappy, opacity: fadeEase }}
+                  className="flex"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-purple-400" />}
+                </motion.span>
+              </AnimatePresence>
+            </motion.button>
           </div>
 
           {/* Expiry + Status */}
@@ -261,7 +307,7 @@ export default function GroupOrderClient({ userId, userName }: Props) {
                 .map((item) => (
                   <motion.button
                     key={item.id}
-                    whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => handleAddItem(item.id)}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5"
                     style={{ border: "1px solid var(--glass-border)" }}
@@ -277,44 +323,68 @@ export default function GroupOrderClient({ userId, userName }: Props) {
 
       {/* Bottom Bar: Slot Selector + Checkout (organiser only) */}
       {isOrganiser && !isExpired && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-[oklch(0.08_0.01_260)]/95 backdrop-blur-md border-t border-[rgba(255,255,255,0.07)] px-4 py-4">
+        <motion.div
+          initial={{ y: 48, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ y: springSnappy, opacity: fadeEase }}
+          className="fixed bottom-0 left-0 right-0 z-30 bg-[var(--bg-base)]/95 backdrop-blur-md border-t border-[var(--border-subtle)] px-4 py-4"
+        >
           <div className="max-w-lg mx-auto">
             {/* Slot selector */}
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-3 pb-1">
-              {slots.map((slot) => (
-                <button
-                  key={slot.id}
-                  onClick={() => setSelectedSlotId(slot.id)}
-                  disabled={slot.currentCount >= slot.maxCapacity}
-                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    selectedSlotId === slot.id
-                      ? "bg-[var(--brand)]/20 text-[var(--brand)] border border-[var(--brand)]/30"
-                      : slot.currentCount >= slot.maxCapacity
-                        ? "bg-white/5 text-[var(--text-disabled)] border border-transparent line-through"
-                        : "bg-white/5 text-[var(--text-muted)] border border-transparent hover:border-white/10"
-                  }`}
-                >
-                  {slot.displayLabel}
-                </button>
-              ))}
-            </div>
+            <LayoutGroup id="group-slots">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-3 pb-1">
+                {slots.map((slot) => {
+                  const full = slot.currentCount >= slot.maxCapacity;
+                  const active = selectedSlotId === slot.id;
+                  return (
+                    <motion.button
+                      key={slot.id}
+                      onClick={() => setSelectedSlotId(slot.id)}
+                      disabled={full}
+                      whileTap={full ? undefined : { scale: 0.96 }}
+                      aria-pressed={active}
+                      className={`relative shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${HIT_SLOP} ${
+                        active
+                          ? "text-[var(--brand)]"
+                          : full
+                            ? "text-[var(--text-disabled)] line-through"
+                            : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId="group-slot-pill"
+                          transition={springSnappy}
+                          className="absolute inset-0 rounded-lg bg-[var(--brand)]/20 border border-[var(--brand)]/30"
+                        />
+                      )}
+                      {!active && (
+                        <span className="absolute inset-0 rounded-lg bg-white/5 border border-transparent" />
+                      )}
+                      <span className="relative z-10">{slot.displayLabel}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
 
             {/* Checkout */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-[var(--text-muted)]">
                 Total: <span className="text-[var(--brand)] font-bold">Rs.{cartTotal.toLocaleString()}</span>
               </span>
-              <button
+              <motion.button
                 onClick={handleCheckout}
                 disabled={!selectedSlotId || group.cartItems.length === 0 || loading}
+                whileTap={{ scale: 0.96 }}
                 className="px-6 py-2.5 rounded-xl bg-[var(--brand)] text-black text-sm font-bold disabled:opacity-40 flex items-center gap-2"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Checkout
-              </button>
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );

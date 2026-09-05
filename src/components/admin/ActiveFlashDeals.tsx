@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
+import { springSnappy, fadeEase } from "@/lib/motion";
 import { Zap, Clock, XCircle, TrendingUp } from "lucide-react";
 
 interface ActiveDeal {
@@ -126,6 +127,7 @@ export default function ActiveFlashDeals() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -20 }}
+            transition={{ y: springSnappy, opacity: fadeEase }}
             className="rounded-xl p-4 relative overflow-hidden"
             style={{
               background: "var(--glass-bg)",

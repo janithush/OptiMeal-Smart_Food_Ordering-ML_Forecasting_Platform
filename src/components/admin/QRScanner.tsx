@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Camera, Loader2, X, Check, AlertCircle } from "lucide-react";
+import { sheetVariants, fadeEase, HIT_SLOP } from "@/lib/motion";
 
 interface Props {
   onClose: () => void;
@@ -85,32 +86,38 @@ export default function QRScanner({ onClose, onScan }: Props) {
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={fadeEase}
         className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          variants={sheetVariants}
+          initial="hidden"
+          animate="shown"
+          exit="gone"
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 pb-8"
           style={{
-            background: "oklch(0.12 0.01 260)",
+            background: "var(--bg-elevated)",
             border: "1px solid var(--glass-border)",
           }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-[var(--text-primary)]">Scan QR Code</h2>
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/5">
+            <motion.button
+              onClick={onClose}
+              whileTap={{ scale: 0.96 }}
+              aria-label="Close scanner"
+              className={`p-1 rounded-lg hover:bg-white/5 ${HIT_SLOP}`}
+            >
               <X className="w-5 h-5 text-[var(--text-muted)]" />
-            </button>
+            </motion.button>
           </div>
 
           {/* Camera view */}
@@ -120,7 +127,7 @@ export default function QRScanner({ onClose, onScan }: Props) {
               <div className="absolute inset-0 border-2 border-[var(--brand)]/40 rounded-xl" />
               <button
                 onClick={() => { stopCamera(); setMode("manual"); }}
-                className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-white/10 text-white text-xs"
+                className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-[var(--glass-bg)] text-[var(--text-primary)] text-xs border border-[var(--glass-border)]"
               >
                 Type Code Instead
               </button>
@@ -137,7 +144,7 @@ export default function QRScanner({ onClose, onScan }: Props) {
                   onChange={(e) => setManualCode(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleManualSubmit()}
                   placeholder="Paste QR code value (e.g. CAF-SMART-...)"
-                  className="flex-1 px-3 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none focus:border-[var(--brand)]/50"
+                  className="flex-1 px-3 py-2.5 rounded-xl text-sm bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none focus:border-[var(--brand)]/50"
                   autoFocus
                 />
                 <button

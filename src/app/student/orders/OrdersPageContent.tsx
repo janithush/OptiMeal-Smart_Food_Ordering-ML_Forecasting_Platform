@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "motion/react";
 import { ClipboardList, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import OrderDetail from "@/components/orders/OrderDetail";
 import { useOrderSocket } from "@/hooks/useOrderSocket";
+import { listContainer, listItem, HIT_SLOP } from "@/lib/motion";
 
 interface OrderItemData {
   menuItemName: string;
@@ -49,19 +51,24 @@ export default function OrdersPageContent({ orders: initialOrders }: Props) {
   }, [onUpdate]);
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] py-10 px-4">
+    <div className="min-h-screen bg-[var(--bg-base)] py-10 px-4">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <button onClick={() => router.push("/student/home")} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">
+          <motion.button
+            onClick={() => router.push("/student/home")}
+            whileTap={{ scale: 0.96 }}
+            aria-label="Back to menu"
+            className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors ${HIT_SLOP}`}
+          >
             <ArrowLeft className="w-4 h-4 text-[var(--text-muted)]" />
-          </button>
+          </motion.button>
           <div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Orders</h1>
           </div>
         </div>
 
-        {/* Orders List */}
+        {/* Orders List — capped stagger (viewport: first paint only) */}
         {orders.length === 0 ? (
           <div className="text-center py-16">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 mb-4">
@@ -73,16 +80,17 @@ export default function OrdersPageContent({ orders: initialOrders }: Props) {
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <motion.div variants={listContainer} initial="hidden" animate="shown" className="space-y-3">
             {orders.map((order) => (
-              <OrderDetail
-                key={order.id}
-                order={order}
-                isExpanded={expandedId === order.id}
-                onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
-              />
+              <motion.div key={order.id} variants={listItem}>
+                <OrderDetail
+                  order={order}
+                  isExpanded={expandedId === order.id}
+                  onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
+                />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

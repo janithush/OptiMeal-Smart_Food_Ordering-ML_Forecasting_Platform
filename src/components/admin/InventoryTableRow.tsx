@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Save, Check, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { fadeEase } from "@/lib/motion";
 
 export interface IngredientRowData {
   id: string;
@@ -153,14 +154,14 @@ export default function InventoryTableRow({ ingredient, date, onSaved, hasAlert,
 
   return (
     <motion.tr
-      className={`border-b border-[rgba(255,255,255,0.06)] hover:bg-white/[0.02] transition-colors ${
+      className={`border-b border-[var(--border-subtle)] hover:bg-white/[0.02] transition-colors ${
         alertTier === "CRITICAL" ? "border-l-2 border-l-red-500/50" :
         alertTier === "WARNING" ? "border-l-2 border-l-amber-500/50" :
         hasAlert ? "border-l-2 border-l-red-500/50" : ""
       }`}
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={fadeEase}
     >
       {/* Ingredient Name + Unit */}
       <td className="py-3 px-3">

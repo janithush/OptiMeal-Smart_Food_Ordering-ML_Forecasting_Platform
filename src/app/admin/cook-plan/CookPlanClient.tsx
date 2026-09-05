@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ClipboardCheck,
   ChevronLeft,
@@ -217,7 +217,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
   const canGoNext = data.date < tomorrowStr;
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
+    <div className="min-h-screen bg-[var(--bg-base)]">
       {/* ── Toast notifications ── */}
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
         <AnimatePresence>
@@ -334,7 +334,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
       </AnimatePresence>
 
       {/* ── Header ── */}
-      <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
+      <div className="sticky top-0 z-10 bg-[var(--bg-base)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push("/admin/dashboard")} className="p-1">
@@ -460,8 +460,8 @@ export default function CookPlanClient({ userName, initialData }: Props) {
         )}
 
         {/* ── Cook Plan Table ── */}
-        <div className="bg-[oklch(0.11_0.01_260)] backdrop-blur-sm rounded-xl border border-[rgba(255,255,255,0.07)] shadow-lg overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)] bg-[oklch(0.10_0.01_260)]">
+        <div className="bg-[var(--bg-elevated)] backdrop-blur-sm rounded-xl border border-[var(--border-subtle)] shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-overlay)]">
             <button
               onClick={() => goToDate(-1)}
               className="p-1 rounded-md hover:bg-white/10 text-[var(--text-secondary)]"
@@ -513,7 +513,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
             <div className="hidden sm:block overflow-x-auto -mx-2 sm:mx-0">
               <table className="w-full min-w-[640px]">
                 <thead>
-                  <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[oklch(0.10_0.01_260)]">
+                  <tr className="border-b border-[var(--border-default)] bg-[var(--bg-overlay)]">
                     <th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                       Menu Item
                     </th>
@@ -549,7 +549,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
                     return (
                       <motion.tr
                         key={item.id}
-                        className="border-b border-[rgba(255,255,255,0.06)] hover:bg-white/[0.02]"
+                        className="border-b border-[var(--border-subtle)] hover:bg-white/[0.02]"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
@@ -594,7 +594,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
                               "w-16 h-7 text-xs text-center rounded-md border " +
                               (isReadOnly
                                 ? "bg-white/5 border-[rgba(255,255,255,0.05)] text-[var(--text-disabled)] cursor-not-allowed"
-                                : "bg-[oklch(0.12_0.01_260)] border-[rgba(255,255,255,0.1)] text-[var(--text-primary)]") +
+                                : "bg-[var(--bg-elevated)] border-[var(--border-default)] text-[var(--text-primary)]") +
                               (item.adminAdjusted
                                 ? " border-l-amber-500/50"
                                 : "")
@@ -651,7 +651,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
                 return (
                   <div
                     key={`card-${item.id}`}
-                    className={`rounded-xl p-3 border border-[rgba(255,255,255,0.07)] ${
+                    className={`rounded-xl p-3 border border-[var(--border-subtle)] ${
                       item.adminAdjusted ? "border-l-amber-500/50 border-l-2" : ""
                     }`}
                     style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
@@ -693,7 +693,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
                           setEditValues((prev) => ({ ...prev, [item.id]: e.target.value }))
                         }
                         disabled={isReadOnly && overrideDialog !== item.id}
-                        className="flex-1 h-8 px-2 rounded text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] font-mono"
+                        className="flex-1 h-8 px-2 rounded text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] font-mono"
                       />
                       {successIds.has(item.id) ? (
                         <span className="text-emerald-400">
@@ -721,7 +721,7 @@ export default function CookPlanClient({ userName, initialData }: Props) {
 
           {/* ── Confirm button ── */}
           {data.items.some((i) => i.status === "SUGGESTED") && (
-            <div className="px-4 py-3 border-t border-[rgba(255,255,255,0.06)] bg-[oklch(0.10_0.01_260)]">
+            <div className="px-4 py-3 border-t border-[var(--border-subtle)] bg-[var(--bg-overlay)]">
               <div className="flex items-center justify-between">
                 <div className="text-[11px] text-[var(--text-disabled)]">
                   <span className="text-emerald-400 font-medium">Save</span>{" "}

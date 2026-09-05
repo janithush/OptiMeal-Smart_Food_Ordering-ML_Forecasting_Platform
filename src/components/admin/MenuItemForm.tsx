@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, Upload, Plus, Trash2, Loader2 } from "lucide-react";
+import { sheetVariants, fadeEase } from "@/lib/motion";
 
 interface IngredientRow {
   ingredientId: string;
@@ -140,23 +141,24 @@ export default function MenuItemForm({ isOpen, onClose, onSave, initial, mode, a
   ];
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={fadeEase}
         className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto"
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          variants={sheetVariants}
+          initial="hidden"
+          animate="shown"
+          exit="gone"
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto"
           style={{
-            background: "oklch(0.12 0.01 260)",
+            background: "var(--bg-elevated)",
             border: "1px solid var(--glass-border)",
           }}
         >

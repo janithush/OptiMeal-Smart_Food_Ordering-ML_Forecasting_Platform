@@ -7,7 +7,7 @@ export default function SignOutButton() {
   return (
     <button
       onClick={() => signOut({ callbackUrl: "/login" })}
-      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[oklch(0.55_0.01_260)] text-xs hover:text-[oklch(0.97_0_0)] hover:bg-[oklch(0.15_0.01_260)] transition-colors"
+      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[var(--text-muted)] text-xs hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg)] transition-colors"
     >
       <LogOut className="w-4 h-4" /> Sign Out
     </button>

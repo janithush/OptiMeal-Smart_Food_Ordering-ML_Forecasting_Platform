@@ -3,8 +3,9 @@
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Coffee } from "lucide-react";
+import { springSnappy, springGentle, fadeEase } from "@/lib/motion";
 
 function LoginForm() {
   const router = useRouter();
@@ -29,18 +30,22 @@ function LoginForm() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[oklch(0.08_0.01_260)] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[oklch(0.78_0.18_55)] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
+          className="w-6 h-6 border-2 border-[var(--brand)] border-t-transparent rounded-full"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-[var(--bg-base)] flex flex-col items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        transition={{ y: springGentle, opacity: fadeEase }}
         className="w-full max-w-md"
       >
         {/* Branding */}
@@ -48,48 +53,60 @@ function LoginForm() {
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-[oklch(0.78_0.18_55)]/10 border border-[oklch(0.78_0.18_55)]/20 mb-6"
+            transition={{ ...springSnappy, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-[var(--brand)]/10 border border-[var(--brand)]/20 mb-6"
           >
-            <Coffee className="w-10 h-10 text-[oklch(0.78_0.18_55)]" />
+            <Coffee className="w-10 h-10 text-[var(--brand)]" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-[oklch(0.97_0_0)] tracking-tight">
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...springSnappy, delay: 0.18 }}
+            className="text-3xl font-bold text-[var(--text-primary)] tracking-tight"
+          >
             CaféSmart
-          </h1>
-          <p className="mt-2 text-[oklch(0.65_0.01_260)] text-sm">
-            Smart University Canteen System
-          </p>
-          <p className="mt-1 text-[oklch(0.55_0.01_260)] text-xs">
-            Faculty of Technology, University of Ruhuna
-          </p>
+          </motion.h1>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ ...fadeEase, delay: 0.28 }}
+          >
+            <p className="mt-2 text-[var(--text-secondary)] text-sm">
+              Smart University Canteen System
+            </p>
+            <p className="mt-1 text-[var(--text-muted)] text-xs">
+              Faculty of Technology, University of Ruhuna
+            </p>
+          </motion.div>
         </div>
 
         {/* Glass Card */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
+          transition={{ ...springSnappy, delay: 0.34 }}
           className="rounded-2xl p-8"
           style={{
-            background: "rgba(255,255,255,0.04)",
-            backdropFilter: "blur(16px)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "var(--glass-bg)",
+            backdropFilter: "var(--glass-blur)",
+            border: "1px solid var(--glass-border)",
           }}
         >
           {/* Google Sign-In Button */}
-          <button
+          <motion.button
             onClick={handleSignIn}
             disabled={isLoading}
+            whileTap={isLoading ? undefined : { scale: 0.96 }}
             className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl
                        bg-white text-gray-900 font-medium text-sm
-                       hover:bg-gray-100 active:scale-[0.98]
+                       hover:bg-gray-100
                        disabled:opacity-60 disabled:cursor-not-allowed
-                       transition-all duration-200"
+                       transition-colors"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              <span className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                   fill="#4285F4"
@@ -109,9 +126,9 @@ function LoginForm() {
               </svg>
             )}
             {isLoading ? "Signing in..." : "Sign in with Google"}
-          </button>
+          </motion.button>
 
-          <p className="mt-5 text-center text-[oklch(0.55_0.01_260)] text-xs">
+          <p className="mt-5 text-center text-[var(--text-muted)] text-xs">
             Sign in with your Google account to continue
           </p>
         </motion.div>
@@ -122,7 +139,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[oklch(0.08_0.01_260)] flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /></div>}>
       <LoginForm />
     </Suspense>
   );

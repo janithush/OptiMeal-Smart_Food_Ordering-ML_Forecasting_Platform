@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Calendar, Plus, Pencil, Trash2, Check, X, Loader2, Play, Brain } from "lucide-react";
 
 interface CalendarEntry {
@@ -180,8 +180,8 @@ export default function AcademicCalendarTab({
       {forecastResult && <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">{forecastResult}</div>}
       <div>
         {/* Academic Calendar */}
-        <div className="bg-[oklch(0.11_0.01_260)] backdrop-blur-sm rounded-xl border border-[rgba(255,255,255,0.07)] shadow-lg overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)] bg-[oklch(0.10_0.01_260)]">
+        <div className="bg-[var(--bg-elevated)] backdrop-blur-sm rounded-xl border border-[var(--border-subtle)] shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-overlay)]">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-[var(--text-muted)]" />
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -199,24 +199,24 @@ export default function AcademicCalendarTab({
 
           {/* Create form */}
           {showForm && (
-            <div className="px-4 py-3 border-b border-[rgba(255,255,255,0.06)] flex flex-wrap items-center gap-2">
+            <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex flex-wrap items-center gap-2">
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="h-8 px-2 rounded-md text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)]"
+                className="h-8 px-2 rounded-md text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)]"
               >
                 {PERIOD_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                className="h-8 px-2 rounded-md text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)]" />
+                className="h-8 px-2 rounded-md text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)]" />
               <span className="text-xs text-[var(--text-muted)]">to</span>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                className="h-8 px-2 rounded-md text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)]" />
+                className="h-8 px-2 rounded-md text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)]" />
               <input type="text" value={label} onChange={(e) => setLabel(e.target.value)}
                 placeholder="Label (optional)"
-                className="h-8 px-2 rounded-md text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] w-40" />
+                className="h-8 px-2 rounded-md text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] w-40" />
               <button onClick={handleCreate} disabled={saving || !startDate || !endDate}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50 transition-colors">
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
@@ -242,7 +242,7 @@ export default function AcademicCalendarTab({
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[oklch(0.10_0.01_260)]">
+                  <tr className="border-b border-[var(--border-default)] bg-[var(--bg-overlay)]">
                     <th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Period</th>
                     <th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Start</th>
                     <th className="py-2.5 px-3 text-left text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">End</th>
@@ -254,14 +254,14 @@ export default function AcademicCalendarTab({
                   {entries.map((entry) => (
                     <motion.tr
                       key={entry.id}
-                      className="border-b border-[rgba(255,255,255,0.06)] hover:bg-white/[0.02]"
+                      className="border-b border-[var(--border-subtle)] hover:bg-white/[0.02]"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
                       <td className="py-3 px-3">
                         {editingId === entry.id ? (
                           <select value={editPeriod} onChange={(e) => setEditPeriod(e.target.value)}
-                            className="h-7 px-1 text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] rounded-md">
+                            className="h-7 px-1 text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] rounded-md">
                             {PERIOD_OPTIONS.map((o) => (
                               <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
@@ -275,7 +275,7 @@ export default function AcademicCalendarTab({
                       <td className="py-3 px-3">
                         {editingId === entry.id ? (
                           <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)}
-                            className="h-7 px-1 text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] rounded-md" />
+                            className="h-7 px-1 text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] rounded-md" />
                         ) : (
                           <span className="text-xs text-[var(--text-secondary)]">{entry.startDate}</span>
                         )}
@@ -283,7 +283,7 @@ export default function AcademicCalendarTab({
                       <td className="py-3 px-3">
                         {editingId === entry.id ? (
                           <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
-                            className="h-7 px-1 text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] rounded-md" />
+                            className="h-7 px-1 text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] rounded-md" />
                         ) : (
                           <span className="text-xs text-[var(--text-secondary)]">{entry.endDate}</span>
                         )}
@@ -291,7 +291,7 @@ export default function AcademicCalendarTab({
                       <td className="py-3 px-3">
                         {editingId === entry.id ? (
                           <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)}
-                            className="h-7 px-1 text-xs bg-[oklch(0.12_0.01_260)] border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] rounded-md w-32" />
+                            className="h-7 px-1 text-xs bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] rounded-md w-32" />
                         ) : (
                           <span className="text-xs text-[var(--text-muted)]">{entry.label || "—"}</span>
                         )}

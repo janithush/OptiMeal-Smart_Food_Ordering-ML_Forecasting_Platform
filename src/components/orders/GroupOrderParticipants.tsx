@@ -1,8 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Crown, User } from "lucide-react";
 import type { GroupParticipantData } from "@/types/group-order";
+import { springSnappy } from "@/lib/motion";
 
 const COLORS = [
   "bg-purple-500", "bg-blue-500", "bg-emerald-500",
@@ -26,6 +27,7 @@ export default function GroupOrderParticipants({ participants, organizerId, maxS
           key={p.studentId}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
+          transition={springSnappy}
           className="relative"
           title={p.studentName + (p.studentId === organizerId ? " (Organiser)" : "")}
         >
@@ -40,7 +42,7 @@ export default function GroupOrderParticipants({ participants, organizerId, maxS
         </motion.div>
       ))}
       {empty > 0 && (
-        <div className="w-8 h-8 rounded-full border border-dashed border-white/15 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border border-dashed border-[var(--border-strong)] flex items-center justify-center">
           <User className="w-3.5 h-3.5 text-[var(--text-disabled)]" />
         </div>
       )}

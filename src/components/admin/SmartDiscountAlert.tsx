@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { springSnappy } from "@/lib/motion";
 import { AlertTriangle, Zap } from "lucide-react";
 import type { SmartDiscountAlertPayload } from "@/lib/order-events";
 
@@ -64,7 +65,7 @@ export default function SmartDiscountAlert({ alert, onCreateDeal }: Props) {
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(alert.percentSold, 100)}%` }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
+              transition={springSnappy}
               className="h-full rounded-full"
               style={{ background: accentColor }}
             />
@@ -85,8 +86,7 @@ export default function SmartDiscountAlert({ alert, onCreateDeal }: Props) {
 
         {/* Create Deal CTA */}
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => onCreateDeal(alert.menuItemId, alert.name)}
           className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white"
           style={{ background: `linear-gradient(135deg, ${accentColor}, ${accentColor} / 0.8)` }}

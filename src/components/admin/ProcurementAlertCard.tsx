@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { springSnappy } from "@/lib/motion";
 import { ShoppingBag, FileText } from "lucide-react";
 
 export interface ProcurementAlertPayload {
@@ -110,7 +111,7 @@ export default function ProcurementAlertCard({
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(Math.abs(percentDeficit), 100)}%` }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
+              transition={springSnappy}
               className="h-full rounded-full"
               style={{ background: accentColor }}
             />
@@ -136,8 +137,7 @@ export default function ProcurementAlertCard({
         {/* Generate PO button */}
         {onGeneratePO && (
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: 0.96 }}
             onClick={onGeneratePO}
             disabled={poGenerating}
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"

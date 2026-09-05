@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Check, AlertCircle, Loader2, Shield } from "lucide-react";
 
 interface Props {
@@ -83,7 +83,7 @@ export default function InviteAcceptClient({
     }
   }
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center px-4 py-12">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md rounded-2xl p-8" style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.08)" }}>
         {status.kind === "loading" && (<div className="flex flex-col items-center text-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand)]" /><p className="mt-4 text-sm text-[var(--text-muted)]">Validating invitation...</p></div>)}
         {status.kind === "validating-failed" && (<div className="flex flex-col items-center text-center"><div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4"><AlertCircle className="w-6 h-6 text-red-400" /></div><h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">Invalid invitation</h2><p className="text-sm text-[var(--text-muted)] mb-6">{status.message}</p><button onClick={() => router.push("/")} className="w-full py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-[var(--text-primary)]">Go home</button></div>)}

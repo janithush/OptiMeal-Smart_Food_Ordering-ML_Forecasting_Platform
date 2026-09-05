@@ -25,7 +25,7 @@ export default function AnalyticsPageContent(props: Props) {
   const walkPct = totalOrders > 0 ? Math.round((walkInCount / totalOrders) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] py-10 px-4">
+    <div className="min-h-screen bg-[var(--bg-base)] py-10 px-4">
       <div className="max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <button onClick={() => router.push("/student/home")} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">

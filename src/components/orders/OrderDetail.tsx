@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import QRDisplay from "./QRDisplay";
+import { springSnappy, springGentle, fadeEase } from "@/lib/motion";
 
 interface OrderItemData {
   menuItemName: string;
@@ -50,7 +51,12 @@ export default function OrderDetail({ order, isExpanded, onToggle }: Props) {
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)" }}>
       {/* Summary Row */}
-      <button onClick={onToggle} className="w-full text-left p-4 flex items-center justify-between gap-3">
+      <motion.button
+        onClick={onToggle}
+        whileTap={{ scale: 0.98 }}
+        aria-expanded={isExpanded}
+        className="w-full text-left p-4 flex items-center justify-between gap-3"
+      >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-bold text-[var(--text-primary)]">{order.orderNumber}</span>
@@ -66,14 +72,27 @@ export default function OrderDetail({ order, isExpanded, onToggle }: Props) {
         <div className="text-right">
           <span className="text-sm font-bold text-[var(--brand)]">Rs.{order.totalAmount}</span>
         </div>
-        <ChevronDown className={`w-4 h-4 text-[var(--text-muted)] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-      </button>
+        <motion.span
+          initial={false}
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+          transition={springSnappy}
+          className="flex"
+        >
+          <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+        </motion.span>
+      </motion.button>
 
       {/* Expanded Detail */}
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {isExpanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="px-4 pb-4 space-y-4 border-t border-[rgba(255,255,255,0.06)] pt-4">
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ height: springGentle, opacity: fadeEase }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-4 border-t border-[var(--border-subtle)] pt-4">
               {/* Items */}
               <div className="space-y-2">
                 {order.items.map((item, i) => (
@@ -82,20 +101,46 @@ export default function OrderDetail({ order, isExpanded, onToggle }: Props) {
                     <span className="text-[var(--text-primary)]">Rs.{item.subtotal}</span>
                   </div>
                 ))}
-                <div className="flex justify-between text-sm font-bold pt-2 border-t border-[rgba(255,255,255,0.06)]">
+                <div className="flex justify-between text-sm font-bold pt-2 border-t border-[var(--border-subtle)]">
                   <span className="text-[var(--text-primary)]">Total</span>
                   <span className="text-[var(--brand)]">Rs.{order.totalAmount}</span>
                 </div>
               </div>
 
-              {/* Status Timeline */}
+              {/* Status Timeline — dots + connectors morph live on socket updates */}
               <div>
-                <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">Status</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Status</p>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={order.status}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={fadeEase}
+                      className="text-[11px] font-semibold text-[var(--brand)]"
+                    >
+                      {statusLabels[order.status] ?? order.status}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
                 <div className="flex items-center gap-1">
                   {statusSteps.map((step, i) => (
                     <div key={step} className="flex items-center gap-1 flex-1">
-                      <div className={`w-3 h-3 rounded-full shrink-0 ${i <= currentIdx ? (i === currentIdx ? "bg-amber-400" : "bg-green-500") : "bg-white/10"}`} />
-                      {i < 3 && <div className={`flex-1 h-0.5 ${i < currentIdx ? "bg-green-500" : "bg-white/10"}`} />}
+                      <motion.div
+                        initial={false}
+                        animate={{ scale: i === currentIdx ? [1, 1.5, 1] : 1 }}
+                        transition={springSnappy}
+                        className={`w-3 h-3 rounded-full shrink-0 ${i <= currentIdx ? (i === currentIdx ? "bg-amber-400" : "bg-green-500") : "bg-white/10"}`}
+                      />
+                      {i < 3 && (
+                        <motion.div
+                          initial={false}
+                          animate={{ opacity: i < currentIdx ? 1 : 0.4 }}
+                          transition={fadeEase}
+                          className={`flex-1 h-0.5 ${i < currentIdx ? "bg-green-500" : "bg-white/10"}`}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

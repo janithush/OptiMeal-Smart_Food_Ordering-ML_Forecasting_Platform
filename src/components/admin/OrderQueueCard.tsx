@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Clock, ChefHat, CheckCircle2 } from "lucide-react";
 
 interface Props {
@@ -72,7 +72,7 @@ export default function OrderQueueCard({ order, onStatusChange }: Props) {
       {/* Action buttons */}
       {order.status === "CONFIRMED" && (
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => onStatusChange(order.id, "IN_PREPARATION")}
           className="w-full py-2 rounded-lg text-xs font-medium bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 transition-colors"
         >
@@ -81,7 +81,7 @@ export default function OrderQueueCard({ order, onStatusChange }: Props) {
       )}
       {order.status === "IN_PREPARATION" && (
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => onStatusChange(order.id, "READY")}
           className="w-full py-2 rounded-lg text-xs font-medium bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 transition-colors"
         >

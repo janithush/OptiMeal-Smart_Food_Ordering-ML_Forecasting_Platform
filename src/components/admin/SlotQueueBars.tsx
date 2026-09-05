@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { springSnappy } from "@/lib/motion";
 
 interface Props {
   slots: { slotId: string; label: string; depth: number; max: number }[];
@@ -34,7 +35,7 @@ export default function SlotQueueBars({ slots }: Props) {
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(pct, 100)}%` }}
-                  transition={{ duration: 0.5 }}
+                  transition={springSnappy}
                   className={`h-full rounded-full ${depthColor(slot.depth, slot.max)}`}
                 />
               </div>

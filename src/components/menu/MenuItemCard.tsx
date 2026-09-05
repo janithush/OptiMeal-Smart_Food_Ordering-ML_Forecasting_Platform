@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import type { MenuItemData } from "@/types/menu";
 import DietaryBadge from "./DietaryBadge";
 import AvailabilityBadge from "./AvailabilityBadge";
@@ -33,8 +33,8 @@ export default function MenuItemCard({ item, onTap }: Props) {
     <motion.button
       onClick={() => onTap(item)}
       disabled={isSoldOut}
-      whileTap={isSoldOut ? undefined : { scale: 0.98 }}
-      className="w-full text-left rounded-2xl overflow-hidden transition-all duration-200"
+      whileTap={{ scale: 0.96 }}
+      className="w-full text-left rounded-2xl overflow-hidden"
       style={{
         background: "var(--glass-bg)",
         backdropFilter: "var(--glass-blur)",

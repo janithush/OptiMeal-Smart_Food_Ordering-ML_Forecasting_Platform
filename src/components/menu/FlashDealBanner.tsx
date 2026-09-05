@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Zap, Clock, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -45,6 +45,8 @@ export default function FlashDealBanner({ deal, onOrderNow, onExpired }: Props) 
     () => formatTimeLeft(deal.expiresAt, Date.now())
   );
   const [isExpired, setIsExpired] = useState(false);
+  // Motion safety: infinite pulses/wiggles render statically under Reduce Motion.
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const tick = () => {
@@ -82,8 +84,8 @@ export default function FlashDealBanner({ deal, onOrderNow, onExpired }: Props) 
           border: "1px solid rgba(251, 191, 36, 0.3)",
         }}
       >
-        {/* Pulsing glow */}
-        {isUrgent && (
+        {/* Pulsing glow (disabled under Reduce Motion) */}
+        {isUrgent && !reduceMotion && (
           <motion.div
             animate={{ opacity: [0.3, 0.6, 0.3] }}
             transition={{ repeat: Infinity, duration: 1.5 }}
@@ -95,7 +97,7 @@ export default function FlashDealBanner({ deal, onOrderNow, onExpired }: Props) 
         <div className="relative p-4">
           <div className="flex items-center gap-2 mb-2">
             <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              animate={reduceMotion ? undefined : { rotate: [0, -10, 10, -10, 0] }}
               transition={{ repeat: Infinity, duration: 1.5, repeatDelay: 3 }}
               className="w-5 h-5 rounded-md bg-amber-400/20 flex items-center justify-center"
             >
@@ -138,8 +140,7 @@ export default function FlashDealBanner({ deal, onOrderNow, onExpired }: Props) 
                 </span>
               </div>
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => onOrderNow(deal.menuItemId)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white"
                 style={{

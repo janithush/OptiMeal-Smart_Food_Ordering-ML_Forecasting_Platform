@@ -24,7 +24,10 @@ import {
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { motion, type Variants } from "framer-motion";
+import { motion, AnimatePresence, type Variants, LayoutGroup } from "motion/react";
+import { useState } from "react";
+import ThemeToggle from "@/components/theme/ThemeToggle";
+import { springSnappy, springGentle, fadeEase, HIT_SLOP } from "@/lib/motion";
 
 // ── Animation Variants ─────────────────────────────────────────────────────
 
@@ -140,7 +143,7 @@ export default function UITestPage() {
           </motion.h1>
 
           <motion.p variants={item} style={{ color: "var(--text-muted)" }} className="text-lg max-w-xl mx-auto">
-            Glassmorphism · OKLCH Color System · Framer Motion · shadcn/ui components
+            Glassmorphism · OKLCH Color System · motion · shadcn/ui components
           </motion.p>
         </motion.div>
 
@@ -217,7 +220,7 @@ export default function UITestPage() {
               <motion.div
                 key={i}
                 variants={item}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                whileHover={{ y: -4, transition: springSnappy }}
               >
                 <Card className="h-full glass-hover group">
                   <CardHeader>
@@ -336,9 +339,165 @@ export default function UITestPage() {
           className="text-center text-xs pb-8"
           style={{ color: "var(--text-disabled)" }}
         >
-          ✅ Story 1.3 verified — shadcn/ui · Framer Motion · Glassmorphism tokens all operational
+          ✅ Story 1.3 verified — shadcn/ui · motion · Glassmorphism tokens all operational
         </motion.p>
+
+        {/* ── Motion System v2 (Batch 1 specimens for lavish-axi review) ── */}
+        <MotionSpecimens />
       </div>
     </main>
+  );
+}
+
+const specimenPills = ["All", "Vegan", "Vegetarian", "Non-Veg"];
+
+function MotionSpecimens() {
+  const [pill, setPill] = useState("All");
+  const [shifted, setShifted] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [toast, setToast] = useState(0);
+
+  return (
+    <motion.section
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true }}
+      variants={container}
+      className="space-y-6"
+    >
+      <motion.h2 variants={item} className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
+        Motion System v2 Specimens
+      </motion.h2>
+
+      {/* Theme toggle */}
+      <motion.div variants={item} className="flex items-center gap-3">
+        <ThemeToggle />
+        <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Hand-rolled light/dark toggle (system default, warm-paper light)
+        </span>
+      </motion.div>
+
+      {/* Gliding filter pills */}
+      <motion.div variants={item} className="space-y-2">
+        <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-disabled)" }}>
+          layoutId pill glide
+        </p>
+        <LayoutGroup id="specimen-pills">
+          <div className="flex gap-1.5">
+            {specimenPills.map((p) => {
+              const active = pill === p;
+              return (
+                <motion.button
+                  key={p}
+                  onClick={() => setPill(p)}
+                  whileTap={{ scale: 0.96 }}
+                  aria-pressed={active}
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium ${HIT_SLOP} ${
+                    active ? "text-[var(--brand)]" : "text-[var(--text-muted)]"
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="specimen-pill"
+                      transition={springSnappy}
+                      className="absolute inset-0 rounded-lg bg-[var(--brand)]/20 border border-[var(--brand)]/30"
+                    />
+                  )}
+                  <span className="relative z-10">{p}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </LayoutGroup>
+      </motion.div>
+
+      {/* Spring comparison */}
+      <motion.div variants={item} className="space-y-2">
+        <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-disabled)" }}>
+          snappy (400/30) vs gentle (260/28) — tap Move to replay
+        </p>
+        <div className="space-y-2">
+          <motion.button
+            onClick={() => setShifted((s) => !s)}
+            whileTap={{ scale: 0.96 }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Move
+          </motion.button>
+          <div className="h-9 rounded-lg bg-white/5 relative overflow-hidden">
+            <motion.div
+              animate={{ x: shifted ? 240 : 8 }}
+              transition={springSnappy}
+              className="absolute top-1.5 w-16 h-6 rounded-md"
+              style={{ background: "var(--brand)" }}
+            />
+          </div>
+          <div className="h-9 rounded-lg bg-white/5 relative overflow-hidden">
+            <motion.div
+              animate={{ x: shifted ? 240 : 8 }}
+              transition={{ ...springGentle, opacity: fadeEase }}
+              className="absolute top-1.5 w-16 h-6 rounded-md"
+              style={{ background: "var(--info)" }}
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 44pt steppers (28px visuals + hit-slop) */}
+      <motion.div variants={item} className="space-y-2">
+        <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-disabled)" }}>
+          tactile steppers + toast popLayout demo
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <motion.button
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              whileTap={{ scale: 0.96 }}
+              aria-label="Decrease quantity"
+              className={`w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 ${HIT_SLOP}`}
+              style={{ color: "var(--text-muted)" }}
+            >
+              −
+            </motion.button>
+            <span className="text-sm font-medium w-6 text-center" style={{ color: "var(--text-primary)" }}>{qty}</span>
+            <motion.button
+              onClick={() => setQty((q) => Math.min(10, q + 1))}
+              whileTap={{ scale: 0.96 }}
+              aria-label="Increase quantity"
+              className={`w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 ${HIT_SLOP}`}
+              style={{ color: "var(--text-muted)" }}
+            >
+              +
+            </motion.button>
+          </div>
+          <motion.button
+            onClick={() => setToast((t) => t + 1)}
+            whileTap={{ scale: 0.96 }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Fire toast
+          </motion.button>
+        </div>
+        <div className="flex justify-center">
+          <AnimatePresence mode="popLayout">
+            {toast > 0 && (
+              <motion.div
+                key={toast}
+                initial={{ y: -24, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -24, opacity: 0 }}
+                transition={{ y: springSnappy, opacity: fadeEase }}
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "var(--bg-overlay)", border: "1px solid var(--glass-border-strong)", color: "var(--text-primary)" }}
+              >
+                Demo toast #{toast} — popLayout, non-blocking
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </motion.section>
   );
 }

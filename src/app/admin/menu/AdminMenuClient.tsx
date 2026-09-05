@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, ToggleLeft, ToggleRight, Loader2, Utensils, Tag, Trash2, Sparkles, Check } from "lucide-react";
 import MenuItemForm from "@/components/admin/MenuItemForm";
@@ -187,7 +187,7 @@ export default function AdminMenuClient({ userName }: { userName: string }) {
   const activeCount = items.filter((i) => i.isActive).length;
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
+    <div className="min-h-screen bg-[var(--bg-base)]">
       {/* Toast notification */}
       <AnimatePresence>
         {toast && (
@@ -214,7 +214,7 @@ export default function AdminMenuClient({ userName }: { userName: string }) {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
+      <div className="sticky top-0 z-10 bg-[var(--bg-base)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

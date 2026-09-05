@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { ShoppingCart, DollarSign, TrendingUp, Package, Users, ClipboardList, Activity, Utensils, Boxes, ClipboardCheck, BarChart3, Settings } from "lucide-react";
 import type { DashboardPayload } from "@/lib/order-events";
@@ -219,9 +219,9 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
   const preOrderPct = data.totalOrders > 0 ? Math.round((data.preOrderCount / data.totalOrders) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)]">
+    <div className="min-h-screen bg-[var(--bg-base)]">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
+      <div className="sticky top-0 z-10 bg-[var(--bg-base)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
@@ -395,7 +395,7 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
           </div>
           {procurementAlerts.length === 0 ? (
             <div
-              className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+              className="rounded-2xl p-4 border border-[var(--border-subtle)]"
               style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
             >
               <p className="text-xs text-[var(--text-muted)]">All ingredients are adequately stocked.</p>
@@ -433,7 +433,7 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
           </div>
           {!staffPlanning ? (
             <div
-              className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+              className="rounded-2xl p-4 border border-[var(--border-subtle)]"
               style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
             >
               <p className="text-xs text-[var(--text-muted)]">No forecast data yet. Run a forecast to see staff planning.</p>
@@ -466,7 +466,7 @@ export default function AdminDashboardClient({ userName, initialData }: Props) {
             </motion.div>
           ) : (
             <div
-              className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+              className="rounded-2xl p-4 border border-[var(--border-subtle)]"
               style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
             >
               <div className="flex items-center gap-2">

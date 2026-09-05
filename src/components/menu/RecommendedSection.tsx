@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Sparkles, Plus } from "lucide-react";
 import type { RecommendedItem } from "@/lib/recommendations";
 
@@ -75,7 +75,7 @@ export default function RecommendedSection({ items, onAddToCart }: Props) {
                   )}
                 </div>
                 <motion.button
-                  whileTap={{ scale: 0.9 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => onAddToCart(item)}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--brand)]/15 hover:bg-[var(--brand)]/25 text-[var(--brand)] text-[10px] font-medium transition-colors"
                 >

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Zap } from "lucide-react";
 import type { MyUsualCombo } from "@/lib/my-usual";
 
@@ -24,7 +24,7 @@ export default function MyUsualSection({ combos, onReorder }: Props) {
         {combos.map((combo) => (
           <motion.button
             key={combo.id}
-            whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => onReorder(combo)}
             className="shrink-0 w-44 rounded-xl p-3 text-left transition-all"
             style={{

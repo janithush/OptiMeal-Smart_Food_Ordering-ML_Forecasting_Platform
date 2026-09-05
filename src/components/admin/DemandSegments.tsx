@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { fadeEase } from "@/lib/motion";
 import { Loader2 } from "lucide-react";
 import {
   BarChart,
@@ -160,7 +161,8 @@ export default function DemandSegments() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)]"
+      transition={fadeEase}
+      className="rounded-2xl p-4 border border-[var(--border-subtle)]"
       style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
     >
       <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">

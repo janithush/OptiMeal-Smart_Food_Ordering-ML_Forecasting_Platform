@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
+import { springSnappy, fadeEase } from "@/lib/motion";
 
 interface Props {
   label: string;
@@ -31,6 +32,7 @@ export default function KpiCard({ label, value, subtitle, icon, trend, glowColor
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ y: springSnappy, opacity: fadeEase }}
       className="rounded-2xl p-4 relative overflow-hidden"
       style={{
         background: "var(--glass-bg)",
@@ -50,14 +52,18 @@ export default function KpiCard({ label, value, subtitle, icon, trend, glowColor
         <div>
           <p className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider">{label}</p>
           <div className="flex items-baseline gap-2 mt-1">
-            <motion.span
-              key={displayValue}
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-xl font-bold text-[var(--text-primary)]"
-            >
-              {displayValue}
-            </motion.span>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={displayValue}
+                initial={{ opacity: 0.4, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0.4, y: 5 }}
+                transition={{ y: springSnappy, opacity: fadeEase }}
+                className="text-xl font-bold text-[var(--text-primary)]"
+              >
+                {displayValue}
+              </motion.span>
+            </AnimatePresence>
             {trend && (
               <span className={`text-[10px] font-medium ${trendColor}`}>
                 {trendIcon}

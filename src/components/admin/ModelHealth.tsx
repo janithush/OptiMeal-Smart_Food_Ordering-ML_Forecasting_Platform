@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { fadeEase } from "@/lib/motion";
 import { Loader2, AlertTriangle, Check, Cpu } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -55,7 +56,8 @@ export default function ModelHealth() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="rounded-2xl p-4 border border-[rgba(255,255,255,0.07)] overflow-hidden"
+      transition={fadeEase}
+      className="rounded-2xl p-4 border border-[var(--border-subtle)] overflow-hidden"
       style={{ background: "var(--glass-bg)", backdropFilter: "var(--glass-blur)" }}
     >
       <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
@@ -95,9 +97,10 @@ export default function ModelHealth() {
               return (
                 <motion.tr
                   key={m.itemName}
-                  className="border-b border-[rgba(255,255,255,0.04)] hover:bg-white/[0.02]"
+                  className="border-b border-[var(--border-subtle)] hover:bg-white/[0.02]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
+                  transition={fadeEase}
                 >
                   <td className="py-2 px-3">
                     <span className="text-xs font-medium text-[var(--text-primary)]">{m.itemName}</span>

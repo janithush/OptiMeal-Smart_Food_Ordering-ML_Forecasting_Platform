@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
+import { sheetVariants, fadeEase } from "@/lib/motion";
 import { Loader2, X } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -117,12 +118,12 @@ export default function WastageHeatmap() {
               return (
                 <motion.tr
                   key={ing.id}
-                  className="border-b border-[rgba(255,255,255,0.04)] hover:bg-white/[0.02]"
+                  className="border-b border-[var(--border-subtle)] hover:bg-white/[0.02]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.15 }}
+                  transition={fadeEase}
                 >
-                  <td className="sticky left-0 z-10 py-2.5 px-3 bg-[oklch(0.11_0.01_260)]">
+                  <td className="sticky left-0 z-10 py-2.5 px-3 bg-[var(--bg-elevated)]">
                     <span className="text-xs font-medium text-[var(--text-primary)]">{ing.name}</span>
                     <span className="ml-1 text-[10px] text-[var(--text-disabled)]">({ing.unit})</span>
                   </td>
@@ -160,21 +161,23 @@ export default function WastageHeatmap() {
       </div>
 
       {/* ── Cell Detail Overlay ── */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {detailCell && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={fadeEase}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={function () { setDetailCell(null); }}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="rounded-2xl p-5 max-w-sm w-full border border-[rgba(255,255,255,0.12)] shadow-2xl"
-              style={{ background: "oklch(0.15 0.01 260)" }}
+              variants={sheetVariants}
+              initial="hidden"
+              animate="shown"
+              exit="gone"
+              className="rounded-2xl p-5 max-w-sm w-full border border-[var(--glass-border)] shadow-2xl"
+              style={{ background: "var(--bg-elevated)" }}
               onClick={function (e) { e.stopPropagation(); }}
             >
               <div className="flex items-center justify-between mb-3">

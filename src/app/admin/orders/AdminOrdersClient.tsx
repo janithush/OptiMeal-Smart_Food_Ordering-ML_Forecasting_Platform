@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, QrCode, Loader2, Package } from "lucide-react";
 import OrderQueueCard from "@/components/admin/OrderQueueCard";
@@ -114,9 +114,9 @@ export default function AdminOrdersClient({ userName }: Props) {
   const totalPending = slots.reduce((sum, s) => sum + s.orders.length, 0);
 
   return (
-    <div className="min-h-screen bg-[oklch(0.08_0.01_260)] pb-20">
+    <div className="min-h-screen bg-[var(--bg-base)] pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[oklch(0.08_0.01_260)]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-4">
+      <div className="sticky top-0 z-10 bg-[var(--bg-base)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">

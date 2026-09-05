@@ -6,7 +6,8 @@
  * with status="ok", red when it errors, amber while loading.
  */
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { fadeEase } from "@/lib/motion";
 import { Cpu, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 
 type MlStatus = "ok" | "error" | "loading" | "unknown";
@@ -72,6 +73,7 @@ export default function MlHealthIndicator() {
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={fadeEase}
       className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium border ${color}`}
       title={
         status === "ok"

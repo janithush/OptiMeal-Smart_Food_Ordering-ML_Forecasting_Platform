@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, Mail, Copy, Check, Loader2, AlertCircle } from "lucide-react";
+import { sheetVariants, fadeEase } from "@/lib/motion";
 
 interface Props {
   isOpen: boolean;
@@ -68,8 +69,8 @@ export default function InviteAdminModal({ isOpen, onClose, onInvited }: Props) 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={close}>
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl p-6" style={{ background: "oklch(0.14 0.012 260)", border: "1px solid var(--glass-border)" }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fadeEase} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={close}>
+          <motion.div variants={sheetVariants} initial="hidden" animate="shown" exit="gone" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--glass-border)" }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-[var(--text-primary)]">{created ? "Invitation created" : "Invite a new admin"}</h3>
               <button onClick={close} className="p-1 rounded hover:bg-white/5 text-[var(--text-muted)] hover:text-[var(--text-primary)]" aria-label="Close"><X className="w-4 h-4" /></button>
