@@ -36,6 +36,9 @@ _bmad-output/
 .claude/
 .windsurf/
 .venv/
+# Local AXI tooling (untracked, not app code — breaks `next build` type-check)
+railway-axi/
+opencode.json
 
 # Git
 .git/

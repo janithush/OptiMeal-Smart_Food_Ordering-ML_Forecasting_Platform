@@ -97,6 +97,11 @@ if [ "${#AUTH_SECRET}" -lt 32 ]; then
 fi
 
 # ── Start the ML service in the background ───────────────────────────────
+# Skipped when DISABLE_ML_COHOST=true (docker-compose.yml runs ML as a
+# split `ml` service and points ML_SERVICE_URL at it instead).
+if [ "${DISABLE_ML_COHOST:-false}" = "true" ]; then
+  _yellow "  • Skipping co-hosted ML (external service via ML_SERVICE_URL=$(printenv ML_SERVICE_URL))"
+else
 _yellow "  • Starting ML microservice on port ${ML_SERVICE_PORT:-8000}..."
 cd /app/ml-service
 # uvicorn writes to stderr; we log to a file so docker logs capture it.
@@ -113,12 +118,16 @@ for i in $(seq 1 20); do
   fi
   sleep 0.5
 done
+cd /app
+fi
 
 # ── Start the Next.js standalone server ──────────────────────────────────
+# NOTE: credentials are NEVER printed — userinfo is replaced with ***.
+DB_DISPLAY="$(printf '%s' "$DATABASE_URL_TRIMMED" | sed -E 's#(^[a-zA-Z][a-zA-Z0-9+.-]*://)[^@]+@#\1***@#')"
 _green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 _green "  ✓ CaféSmart starting on port ${PORT:-3000}"
 _green "    ENV:   NODE_ENV=${NODE_ENV:-production}"
-_green "    DB:    ${DATABASE_URL_TRIMMED%%@*}@***"
+_green "    DB:    $DB_DISPLAY"
 _green "    ML:    $(printenv ML_SERVICE_URL)"
 _green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
